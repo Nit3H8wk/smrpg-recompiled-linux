@@ -32,6 +32,17 @@ echo "== SMRPG Recomp — first-time setup =="
 
 die() { echo "error: $1" >&2; exit 1; }
 
+# Status indicator: write to file + desktop notification
+STATUS_FILE="$DATA/build_status.txt"
+status() {
+  local msg="$1"
+  echo "$msg" | tee -a "$STATUS_FILE"
+  # Desktop notification (if available)
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send "SMRPG Recomp" "$msg" || true
+  fi
+}
+
 # Native instruction dialog (falls back to plain text)
 info() {
   local msg="$1" title="$2"
@@ -145,18 +156,22 @@ for t in clang lld make pkg-config glslc python3; do
 done
 
 echo "-- installing Python build deps (lz4, capstone, unicorn)..."
+status "Installing Python build dependencies..."
 cd "$BUILD_DIR"
 python3 -m venv tools/venv && tools/venv/bin/pip install --quiet lz4 capstone unicorn \
   || die "Python dependency install failed — check your internet connection"
 
 echo "-- translating game binary to C (this takes 10-20 minutes)..."
+status "Translating game binary to C... (10-20 minutes)"
 make gen || die "'make gen' failed — see messages above"
 echo "-- compiling for this CPU ($(nproc) jobs)..."
+status "Compiling for this CPU ($(nproc) jobs)..."
 make -j"$(nproc)" || die "'make' failed — see messages above"
 
 cp build/lasgame.so "$DATA/" || die "failed to copy lasgame.so"
 cp build/lasgame.so.id "$DATA/" || die "failed to copy lasgame.so.id"
 
+status "Build complete! Launching the game..."
 echo ""
 echo "== Setup complete! Launching the game..."
 exit 0
