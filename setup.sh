@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # ============================================================================
-# setup.sh — one-time bootstrap inside smrpg.AppImage
+# setup.sh — one-time bootstrap inside smrpg-linux.AppImage
 #
-# Runs on first launch only. Asks for your legally dumped game folder and
-# prod.keys (GUI picker if available), validates the NSO build ID, clones the
-# source, translates and compiles lasgame.so into a writable data folder.
-# Once $DATA/lasgame.so.id exists, AppRun skips this entirely.
+# Runs on first launch only. Guides the user through selecting their own
+# prod.keys and extracted game folder (v1.0.0) using native file browsers,
+# copies the assets into the local data folder, and compiles lasgame.so
+# offline from the bundled source. Once $DATA/lasgame.so.id exists, AppRun
+# skips this entirely. No Nintendo files are ever bundled in the AppImage.
 # ============================================================================
 set -euo pipefail
 
-DATA=""
-ROM_ARG=""
-KEYS_ARG=""
+DATA="" ROM_ARG="" KEYS_ARG=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --data=*) DATA="${1#--data=}";;
@@ -27,123 +26,129 @@ DEFAULT_KEYS="$HOME/.switch/prod.keys"
 INSTALL="$(cd "$(dirname "$0")" && pwd)"
 
 # Already configured?
-if [[ -f "$DATA/lasgame.so.id" ]]; then
-  exit 0
-fi
+[[ -f "$DATA/lasgame.so.id" ]] && exit 0
 
 echo "== SMRPG Recomp — first-time setup =="
 
-for t in clang lld make pkg-config glslc python3; do
-  command -v "$t" >/dev/null || { echo "error: missing $t. Install it from your distro and relaunch." >&2; exit 1; }
-done
+die() { echo "error: $1" >&2; exit 1; }
 
-pick_file() {   # $1 = label, $2 = hint path — tries every common native browser
-  local out="" tool found=0
-  for tool in kdialog zenity-qt zenity; do
-    if command -v "$tool" >/dev/null 2>&1; then
-      found=1
-      case "$tool" in
-        kdialog)     out=$($tool --title "SMRPG Recomp" --file-open "$2" 2>/dev/null) || true ;;
-        zenity-qt|zenity) out=$($tool --file-selection --filename="$2/" 2>/dev/null) || true ;;
-      esac
-      break
-    fi
-  done
-  if [[ $found -eq 0 ]]; then
-    read -r -p "No GUI file browser found — enter path to $1 [$2]: " out
-    [[ -n "$out" ]] || out="$2"
+# Native instruction dialog (falls back to plain text)
+info() {
+  local msg="$1" title="$2"
+  echo ""
+  echo "--- $title ---"
+  echo "$msg"
+  if command -v kdialog >/dev/null 2>&1; then
+    kdialog --title "SMRPG Recomp — Setup" --msgbox "$msg" >/dev/null 2>&1 || true
+  elif command -v zenity-qt >/dev/null 2>&1; then
+    zenity-qt --info --title="SMRPG Recomp — Setup" --text="$msg" >/dev/null 2>&1 || true
+  elif command -v zenity >/dev/null 2>&1; then
+    zenity --info --title="SMRPG Recomp — Setup" --text="$msg" >/dev/null 2>&1 || true
   fi
-  printf '%s\n' "$out" | tr -d '"'
 }
 
-pick_dir() {    # $1 = label, $2 = hint path — tries every common native browser
+# Try every common native browser; fall back to terminal prompt.
+pick_file() {  # $1 = hint path
   local out="" tool found=0
   for tool in kdialog zenity-qt zenity; do
-    if command -v "$tool" >/dev/null 2>&1; then
-      found=1
-      case "$tool" in
-        kdialog)     out=$($tool --title "SMRPG Recomp" --select-folder "$2" 2>/dev/null) || true ;;
-        zenity-qt|zenity) out=$($tool --file-selection --directory=true --filename="$2/" 2>/dev/null) || true ;;
-      esac
-      break
-    fi
+    command -v "$tool" >/dev/null 2>&1 || continue
+    found=1
+    case "$tool" in
+      kdialog)          out=$($tool --title "SMRPG Recomp — Setup" --file-open "$1" 2>/dev/null) || true ;;
+      zenity-qt|zenity)  out=$($tool --file-selection --filename="$1/" 2>/dev/null) || true ;;
+    esac
+    break
   done
-  if [[ $found -eq 0 ]]; then
-    read -r -p "No GUI file browser found — enter path to $1 [$2]: " out
-    [[ -n "$out" ]] || out="$2"
-  fi
-  printf '%s\n' "$out" | tr -d '"'
+  [[ $found -eq 1 ]] || read -r -p "Terminal mode — enter path to prod.keys [$1]: " out
+  printf '%s\n' "${out:-$1}" | tr -d '"'
 }
 
-# --- 1. prod.keys (validated for your confidence; never copied into the app) --
-echo "-- Step 1: your Nintendo 'prod.keys'"
+pick_dir() {     # $1 = hint path
+  local out="" tool found=0
+  for tool in kdialog zenity-qt zenity; do
+    command -v "$tool" >/dev/null 2>&1 || continue
+    found=1
+    case "$tool" in
+      kdialog)          out=$($tool --title "SMRPG Recomp — Setup" --select-folder "$1" 2>/dev/null) || true ;;
+      zenity-qt|zenity)  out=$($tool --file-selection --directory=true --filename="$1/" 2>/dev/null) || true ;;
+    esac
+    break
+  done
+  [[ $found -eq 1 ]] || read -r -p "Terminal mode — enter path to the game folder [$1]: " out
+  printf '%s\n' "${out:-$1}" | tr -d '"'
+}
+
+# --- Step 1: prod.keys ------------------------------------------------------
+info "Select your Nintendo 'prod.keys' file. This is the key file exported from your Switch console (e.g. via Tinfoil, Riivolution, or a sysdump tool). It lets the game decrypt its own files." "Step 1 of 2: prod.keys"
 if [[ -n "$KEYS_ARG" ]]; then KEYS="$KEYS_ARG"; elif [[ -f "$DEFAULT_KEYS" ]]; then
   KEYS="$DEFAULT_KEYS"
 else
-  KEYS=$(pick_file "your prod.keys file" "$HOME")
+  KEYS=$(pick_file "$HOME")
 fi
-[[ -s "${KEYS:-}" ]] || { echo "error: no valid prod.keys found." >&2; exit 1; }
-echo "-- prod.keys OK: $KEYS (stays where it is)"
+[[ -s "${KEYS:-}" ]] || die "no valid prod.keys found at: $KEYS"
+echo "-- prod.keys OK: $KEYS (stays where it is — never copied into the app)"
 
-# --- 2. the extracted game files ---------------------------------------------
-echo "-- Step 2: your extracted game (folder with exefs/ and romfs/, v1.0.0)"
+# --- Step 2: extracted game folder ------------------------------------------
+info "Select the Super Mario RPG folder. This must be the folder that CONTAINS both 'exefs/' and 'romfs/' subfolders (version 1.0.0). If you dumped from an .nsp/.xci, extract it first — then pick the parent folder." "Step 2 of 2: Game Files"
 if [[ -n "$ROM_ARG" ]]; then ROM="$ROM_ARG"; else
-  ROM=$(pick_dir "the Super Mario RPG folder with exefs/ and romfs/" "$HOME")
+  ROM=$(pick_dir "$HOME")
 fi
 ROM="${ROM%/}"
-[[ -f "$ROM/exefs/main" ]] || { echo "error: $ROM/exefs/main not found — pick the folder that CONTAINS exefs/." >&2; exit 1; }
-[[ -d "$ROM/romfs" ]]      || { echo "error: $ROM/romfs not found." >&2; exit 1; }
+[[ -f "$ROM/exefs/main" ]] || die "$ROM/exefs/main not found — pick the folder that CONTAINS exefs/"
+[[ -d "$ROM/romfs" ]]      || die "$ROM/romfs not found — pick the folder that CONTAINS romfs/"
 
-# --- 3. validate NSO build ID --------------------------------------------------
-BUILD_ID=$(python3 - "$ROM/exefs/main" <<'EOF'
+# --- Step 3: validate NSO build ID -------------------------------------------
+BUILD_ID=$(python3 - "$ROM/exefs/main" <<'EOF' 2>/dev/null
 import sys
 with open(sys.argv[1], "rb") as f:
     if f.read(4) != b"NSO0":
-        sys.exit("not an NSO file")
+        raise SystemExit("bad header")
     f.seek(0x40)
     print(f.read(16).hex())
 EOF
-) || { echo "error: $ROM/exefs/main is not a valid NSO binary." >&2; exit 1; }
+) || die "$ROM/exefs/main is not a valid NSO binary"
 echo "-- main build ID: $BUILD_ID"
-[[ "$BUILD_ID" == "$EXPECTED_ID" ]] || {
-  echo "error: not Super Mario RPG v1.0.0 (expected $EXPECTED_ID)." >&2
-  exit 1
-}
-echo "-- game files validated: Super Mario RPG 1.0.0 ✓"
+[[ "$BUILD_ID" == "$EXPECTED_ID" ]] || { echo "expected $EXPECTED_ID (v1.0.0)" >&2; die "wrong game version"; }
+echo "-- validated: Super Mario RPG v1.0.0 ✓"
 
-# --- 4. source tree -------------------------------------------------------------
-SRC="$DATA/src"
-if [[ ! -f "$SRC/Makefile" ]]; then
-  echo "-- getting the source tree..."
-  rm -rf "$SRC"
-  git clone --depth 1 https://github.com/Nit3H8wk/smrpg-recompiled-linux.git "$SRC" \
-    || { echo "error: couldn't clone the source; check your connection." >&2; exit 1; }
+# --- Step 4: copy assets into the data folder ---------------------------------
+EXTRACTED="$DATA/extracted"
+if [[ ! -d "$EXTRACTED/exefs" ]]; then
+  echo "-- copying exefs/ and romfs/ into $EXTRACTED ..."
+  mkdir -p "$EXTRACTED"
+  cp -r "$ROM/exefs" "$EXTRACTED/exefs" || die "failed to copy exefs"
+  cp -r "$ROM/romfs" "$EXTRACTED/romfs" || die "failed to copy romfs"
+else
+  echo "-- assets already in $EXTRACTED — skipping copy"
 fi
 
-# --- 5. link game files (never copied, never modified) --------------------------
-cd "$SRC"
-rm -rf extracted
-mkdir -p extracted
-ln -sfn "$ROM/exefs" extracted/exefs
-ln -sfn "$ROM/romfs" extracted/romfs
+# --- Step 5: offline build from bundled source ---------------------------------
+SRC="$INSTALL/src_bundle"
+[[ -f "$SRC/Makefile" ]] || die "bundled source missing ($SRC) — AppImage is corrupt"
 
-echo "-- installing build tools..."
-python3 -m venv tools/venv && tools/venv/bin/pip install --quiet lz4 capstone unicorn
+BUILD_DIR=$(mktemp -d "${TMPDIR:-/tmp}/smrpg_build.XXXXXX")
+trap 'rm -rf "$BUILD_DIR"' EXIT
+echo "-- preparing build directory: $BUILD_DIR"
+cp -r "$SRC/." "$BUILD_DIR/" || die "failed to extract source bundle"
+ln -sfn "$EXTRACTED" "$BUILD_DIR/extracted"
 
-# --- 6. translate and compile ----------------------------------------------------
-echo "-- translating the game binary to C (10-20 minutes)..."
-make gen
+for t in clang lld make pkg-config glslc python3; do
+  command -v "$t" >/dev/null 2>&1 || die "missing build tool: $t — install it from your distro and relaunch"
+done
+
+echo "-- installing Python build deps (lz4, capstone, unicorn)..."
+cd "$BUILD_DIR"
+python3 -m venv tools/venv && tools/venv/bin/pip install --quiet lz4 capstone unicorn \
+  || die "Python dependency install failed — check your internet connection"
+
+echo "-- translating game binary to C (this takes 10-20 minutes)..."
+make gen || die "'make gen' failed — see messages above"
 echo "-- compiling for this CPU ($(nproc) jobs)..."
-make -j"$(nproc)"
+make -j"$(nproc)" || die "'make' failed — see messages above"
 
-cp build/lasgame.so "$DATA/"
-cp build/lasgame.so.id "$DATA/"
+cp build/lasgame.so "$DATA/" || die "failed to copy lasgame.so"
+cp build/lasgame.so.id "$DATA/" || die "failed to copy lasgame.so.id"
 
-# --- 7. point the runtime at your game files -------------------------------------
-mkdir -p "$DATA/extracted"
-ln -sfn "$ROM/exefs" "$DATA/extracted/exefs"
-ln -sfn "$ROM/romfs" "$DATA/extracted/romfs"
-
-echo
-echo "== Setup complete. Launching the game..."
+echo ""
+echo "== Setup complete! Launching the game..."
 exit 0
