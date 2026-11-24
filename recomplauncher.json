@@ -1,0 +1,45 @@
+{
+  "$schema": "https://recomplauncher.com/schema/recomplauncher.json",
+  "format": 1,
+  "name": "SMRPG Recomp (Linux)",
+  "repo": "ElKiro1311/smrpg-recompiled-linux",
+  "inputs": [
+    {
+      "id": "game",
+      "label": "Super Mario RPG v1.0.0 — your extracted folder with exefs/ and romfs/",
+      "formats": [{ "type": "folder" }],
+      "check": { "nup_build_id": "e968832cade2ad7cbd85b6c6dfe1d9c1" },
+      "into": "extracted"
+    },
+    {
+      "id": "prodkeys",
+      "label": "Your Nintendo Switch prod.keys",
+      "role": "key",
+      "shared": "switch.prod-keys"
+    }
+  ],
+  "prepare": {
+    "program": ["build.sh"],
+    "args": ["--game={input:game}", "--data={install}/data"],
+    "label": "Translating the game's code to C and compiling for this PC (10–20 minutes)",
+    "done": ["{install}/data/lasgame.so.id"],
+    "keeps_copy": true
+  },
+  "start": {
+    "program": ["smrpg.AppImage"],
+    "args": [],
+    "env": {
+      "LARECOMP_DATA_HOME": "{install}/data",
+      "LARECOMP_GAME_LIB": "{install}/data/lasgame.so"
+    }
+  },
+  "folders": {
+    "saves": [{ "path": "{install}/data/save" }],
+    "logs": [{ "path": "{install}/data" }]
+  },
+  "system": {
+    "linux": {
+      "graphics": { "vulkan": "1.3" }
+    }
+  }
+}

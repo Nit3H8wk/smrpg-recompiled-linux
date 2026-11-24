@@ -70,3 +70,6 @@ amd_fidelityfx_*.dll
 /lasrecomp*.log
 /tools/android/lsfg-thor/
 /tools/android/partida-prueba-*/
+/src
+/AppDir/
+/smrpg.AppImage

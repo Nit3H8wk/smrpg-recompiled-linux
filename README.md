@@ -60,6 +60,16 @@ Needs clang, lld, make, pkg-config, glslc, Python 3 (venv), SDL3 ≥ 3.4, FFmpeg
 and shaderc (`sudo apt install ...` in [`README_LINUX.md`](README_LINUX.md)). Your keys and dumps stay
 outside the repository: `*.keys`, `prod.keys`, `romfs/`, `exefs/` and `main` are git-ignored.
 
+### With [Recomplauncher](https://github.com/elripalda/RecompLauncher)
+
+If you use [Recomplauncher](https://recomplauncher.com), this repository includes a ready-made
+[`recomplauncher.json`](recomplauncher.json). The launcher asks for your game folder and `prod.keys`
+(shared), verifies the NSO build ID itself, then runs [`build.sh`](build.sh) to translate the game's
+code and compile it on your PC before launching `smrpg.AppImage`. Everything lives in the install
+folder; nothing is ever written back into your dumps. To use a release: download the zip with
+`recomplauncher.json`, `build.sh` and `smrpg.AppImage` (built by [`make_appimage.sh`](make_appimage.sh)),
+and import it through the launcher.
+
 ## Building
 
 On Windows, with MSYS2 UCRT64: [`GUIDE.md`](GUIDE.md) and [`docs/BUILD-windows.md`](docs/BUILD-windows.md). The extracted
