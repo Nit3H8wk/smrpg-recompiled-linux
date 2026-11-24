@@ -162,8 +162,24 @@ python3 -m venv tools/venv && tools/venv/bin/pip install --quiet lz4 capstone un
   || die "Python dependency install failed — check your internet connection"
 
 echo "-- translating game binary to C (this takes 10-20 minutes)..."
-status "Translating game binary to C... (10-20 minutes)"
-make gen || die "'make gen' failed — see messages above"
+status "Translating game binary to C... 0%"
+# Run make gen, capture output, and parse progress
+GEN_LOG=$(mktemp)
+trap 'rm -f "$GEN_LOG"' EXIT
+if make gen > "$GEN_LOG" 2>&1; then
+  while read -r line; do
+    echo "$line"
+    if [[ "$line" =~ progress[[:space:]]([0-9]+)/([0-9]+) ]]; then
+      current="${BASH_REMATCH[1]}"
+      total="${BASH_REMATCH[2]}"
+      pct=$((current * 100 / total))
+      status "Translating game binary to C... ${pct}%"
+    fi
+  done < "$GEN_LOG"
+else
+  cat "$GEN_LOG" >&2
+  die "'make gen' failed — see messages above"
+fi
 echo "-- compiling for this CPU ($(nproc) jobs)..."
 status "Compiling for this CPU ($(nproc) jobs)..."
 make -j"$(nproc)" || die "'make' failed — see messages above"
