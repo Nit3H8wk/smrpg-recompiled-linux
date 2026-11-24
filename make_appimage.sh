@@ -26,6 +26,9 @@ cp -r tools AppDir/src_bundle/tools
 rm -rf AppDir/src_bundle/tools/venv AppDir/src_bundle/tools/__pycache__
 cp -r third_party/imgui AppDir/src_bundle/third_party/imgui
 cp -r third_party/smaa AppDir/src_bundle/third_party/smaa
+cp -r third_party/amd-fsr AppDir/src_bundle/third_party/amd-fsr
+cp -r third_party/vma AppDir/src_bundle/third_party/vma
+cp -r third_party/ryujinx AppDir/src_bundle/third_party/ryujinx
 cp Makefile AppDir/src_bundle/Makefile
 
 cat > AppDir/AppRun <<'EOF'
