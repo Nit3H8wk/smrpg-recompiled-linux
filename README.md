@@ -1,10 +1,14 @@
-# SMRPG Recomp
+# SMRPG Recomp (Linux Fork)
 
 **English** · [Español](README.es.md)
 
-An unofficial port of **Super Mario RPG** (Nintendo Switch, 2023, version 1.0.0) to **Windows** through static
-recompilation: the game's program is translated to C, compiled for your PC's processor and runs on top of the
+An unofficial port of **Super Mario RPG** (Nintendo Switch, 2023, version 1.0.0) to **Linux x86-64 and aarch64**
+through static recompilation: the game's program is translated to C, compiled for your PC's processor and runs on top of the
 [LASRecomp](https://github.com/peiikai/LASRecomp) runtime (system services, kernel and NVN → Vulkan).
+
+This is the **Linux fork** of [smrpg-recompiled](https://github.com/ElKiro1311/smrpg-recompiled): where the
+original targets Windows, this one builds a native Linux binary (`smrpg`), includes [`setup_linux.sh`](setup_linux.sh)
+for guided local builds and integrates with [Recomplauncher](https://github.com/elripalda/RecompLauncher).
 
 The **Android** port has its own repository and releases:
 [**smrpg-recompiled-android**](https://github.com/ElKiro1311/smrpg-recompiled-android).
@@ -72,15 +76,14 @@ and import it through the launcher.
 
 ## Building
 
-On Windows, with MSYS2 UCRT64: [`GUIDE.md`](GUIDE.md) and [`docs/BUILD-windows.md`](docs/BUILD-windows.md). The extracted
-game goes in `extracted/` (or a link to that folder); `make gen` translates its code to C and `make -j8` builds
-`build/smrpg-recomp.exe` and `build/lasgame.dll`. The paths of tools outside the repository go in your own `local.env`,
-which git ignores: see [`local.env.example`](local.env.example). Technical status and how it is tested:
-[`STATUS.md`](STATUS.md).
+On Linux: [`setup_linux.sh`](setup_linux.sh) (see the [Linux section](#linux)). The extracted game goes in `extracted/`
+(or a link to that folder); `make gen` translates its code to C and `make -j8` builds `build/lasrecomp` (run as `smrpg`)
+and `build/lasgame.so`. The paths of tools outside the repository go in your own `local.env`, which git ignores: see
+[`local.env.example`](local.env.example). Technical status and how it is tested: [`STATUS.md`](STATUS.md).
 
-Only Windows is supported here. The macOS and Linux parts, `make dist`/`app`/`dmg`/`appimage`, the Link's Awakening
-randomizer (`tools/rando`, `third_party/LAS-Randomizer`) and `tools/shot.sh`, `frames.sh` and `run.sh` come from LASRecomp
-and are not used. The port starts from LASRecomp 579fdad: compare with that commit to see what it adds.
+This fork supports **Linux** (x86-64, aarch64). Windows builds come from the original [smrpg-recompiled](https://github.com/ElKiro1311/smrpg-recompiled);
+the macOS parts, `make dist`/`app`/`dmg`, the Link's Awakening randomizer (`tools/rando`, `third_party/LAS-Randomizer`) and `tools/shot.sh`,
+`frames.sh` and `run.sh` come from LASRecomp and are not used. The port starts from LASRecomp 579fdad: compare with that commit to see what it adds.
 
 ## Bugs and suggestions
 
