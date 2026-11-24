@@ -26,7 +26,7 @@
     "keeps_copy": true
   },
   "start": {
-    "program": ["smrpg.AppImage"],
+    "program": ["smrpg-linux.AppImage"],
     "args": [],
     "env": {
       "LARECOMP_DATA_HOME": "{install}/data",
