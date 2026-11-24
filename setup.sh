@@ -79,18 +79,26 @@ pick_dir() {     # $1 = hint path
 }
 
 # --- Step 1: prod.keys ------------------------------------------------------
-info "Select your Nintendo 'prod.keys' file. This is the key file exported from your Switch console (e.g. via Tinfoil, Riivolution, or a sysdump tool). It lets the game decrypt its own files." "Step 1 of 2: prod.keys"
-if [[ -n "$KEYS_ARG" ]]; then KEYS="$KEYS_ARG"; elif [[ -f "$DEFAULT_KEYS" ]]; then
-  KEYS="$DEFAULT_KEYS"
+# Check if RecompLauncher (or user) already provided it
+if [[ -n "$KEYS_ARG" ]]; then KEYS="$KEYS_ARG"
+elif [[ -f "$DATA/prod.keys" ]]; then KEYS="$DATA/prod.keys"
+elif [[ -f "${LARECOMP_KEYS:-}" ]]; then KEYS="$LARECOMP_KEYS"
+elif [[ -f "$DEFAULT_KEYS" ]]; then KEYS="$DEFAULT_KEYS"
 else
+  info "Select your Nintendo 'prod.keys' file. This is the key file exported from your Switch console (e.g. via Tinfoil, Riivolution, or a sysdump tool). It lets the game decrypt its own files." "Step 1 of 2: prod.keys"
   KEYS=$(pick_file "$HOME")
 fi
 [[ -s "${KEYS:-}" ]] || die "no valid prod.keys found at: $KEYS"
 echo "-- prod.keys OK: $KEYS (stays where it is — never copied into the app)"
 
 # --- Step 2: extracted game folder ------------------------------------------
-info "Select the Super Mario RPG folder. This must be the folder that CONTAINS both 'exefs/' and 'romfs/' subfolders (version 1.0.0). If you dumped from an .nsp/.xci, extract it first — then pick the parent folder." "Step 2 of 2: Game Files"
-if [[ -n "$ROM_ARG" ]]; then ROM="$ROM_ARG"; else
+# Check if RecompLauncher already put assets in data/extracted/
+if [[ -f "$DATA/extracted/exefs/main" && -d "$DATA/extracted/romfs" ]]; then
+  ROM="$DATA/extracted"
+  echo "-- assets already in $ROM — skipping picker"
+elif [[ -n "$ROM_ARG" ]]; then ROM="$ROM_ARG"
+else
+  info "Select the Super Mario RPG folder. This must be the folder that CONTAINS both 'exefs/' and 'romfs/' subfolders (version 1.0.0). If you dumped from an .nsp/.xci, extract it first — then pick the parent folder." "Step 2 of 2: Game Files"
   ROM=$(pick_dir "$HOME")
 fi
 ROM="${ROM%/}"
