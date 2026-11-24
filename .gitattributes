@@ -1,0 +1,6 @@
+# Bash scripts, Python and the Makefile: always with LF when checked out (Git for Windows uses CRLF by default, and bash
+# fails with CRLF). They are already stored with LF: this changes no file.
+*.sh        text eol=lf
+*.py        text eol=lf
+Makefile    text eol=lf
+tools/linux/AppRun text eol=lf

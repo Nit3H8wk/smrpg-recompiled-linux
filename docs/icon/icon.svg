@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1450"/><stop offset="1" stop-color="#4a2fa0"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.53" r="0.42"><stop offset="0" stop-color="#7f6cff" stop-opacity="0.55"/><stop offset="1" stop-color="#7f6cff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="gold" x1="0" y1="0.22" x2="0" y2="0.84" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#fff08a"/><stop offset="1" stop-color="#f7a21b"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="205" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="205" fill="url(#glow)"/>
+  <polygon points="512.0,143.4 623.4,404.8 906.4,429.9 692.2,616.6 755.8,893.6 512.0,747.5 268.2,893.6 331.8,616.6 117.6,429.9 400.6,404.8" fill="#b85a00"/>
+  <polygon points="512.0,189.4 605.3,429.7 862.6,444.2 663.0,607.1 728.7,856.3 512.0,716.8 295.3,856.3 361.0,607.1 161.4,444.2 418.7,429.7" fill="url(#gold)"/>
+  <polygon points="291.8,225.3 220.7,241.2 204.8,312.3 188.9,241.2 117.8,225.3 188.9,209.4 204.8,138.2 220.7,209.4" fill="#ffffff"/>
+  <polygon points="911.4,819.2 861.5,830.8 849.9,880.6 838.3,830.8 788.5,819.2 838.3,807.6 849.9,757.8 861.5,807.6" fill="#ffffff"/>
+</svg>

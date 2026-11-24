@@ -1,0 +1,1137 @@
+CHANGELOG OF THE SUPER MARIO RPG PORT (smrpg-recomp)
+====================================================
+Newest first. Every published change is a new version, with its own tag and release on GitHub (in the public repository,
+since 0.51.0-beta: earlier ones are only described here).
+
+Numbering (since 0.45.1-beta): x.y.z-alpha / x.y.z-beta, Semantic Versioning 2.0.0 (semver.org):
+  - z, patch: fixes only, nothing new and nothing that changes how it is used (0.45.0 -> 0.45.1);
+  - y, minor: something new, without breaking what was there (0.45.1 -> 0.46.0; the patch goes back to 0);
+  - x, major: something that breaks what came before (saves, settings or files that stop working, something removed);
+    with 0.x (development) that bumps y too. 1.0.0 will be the first finished, stable version, with no suffix.
+  - the suffix, maturity: alpha while it was not playable (up to 0.20.0), beta since it is fully playable (0.21.0).
+Earlier versions were called v0 to v45: vN is 0.N.0 (alpha up to 20, beta from 21 on).
+
+0.52.0-beta (2026-11-23) — everything in English, and the menu and the installer in English and Spanish
+  1. The repository is now in English: code comments, log messages, scripts, file names and documents. README and the guide
+     are also in Spanish (README.es.md, GUIDE.es.md).
+  2. The settings menu is in English, and in Spanish when the game's language is Spanish (Video > Game language; with
+     "Automatic", Windows' own). It changes right away; the game's own text, the next time it opens. The code has the English
+     texts and runtime/ui/lang_es.inc the Spanish ones (tr(), runtime/ui/tr.h; tools/check_lang.py).
+  3. The installer is in English, and in Spanish when Windows is (--lang en|es forces one). Its log is in English.
+     Options: --game, --dest, --no-shortcuts, --hidden, --copy-only, --screenshot, --pack (before, in Spanish).
+  4. New names, in English, of what an installation has: builder\, licenses\, README.txt (with LEEME.txt, in Spanish),
+     install.log, build.log; the HD texture folders, textures/ and textures-dump/. The installer renames what an earlier
+     installation has, and the program still uses texturas/ and texturas-volcadas/ if those are the ones there.
+  5. Updating from 0.51.0-beta does not build the game code again: in what it is built from only comments changed, so it keeps
+     its id (GAMELIB_SAME in the Makefile; SAME_GEN in tools/installer/game_builder.cpp).
+  6. The Android port has its own repository, with its own releases:
+     https://github.com/ElKiro1311/smrpg-recompiled-android
+  7. The version in the .exe's properties is the right one (it was 0.0.0.0).
+
+0.51.0-beta (2026-11-22) — the installer asks for your already extracted copy; the program is called SMRPG Recomp
+  1. Installer: it asks for the folder of your already extracted copy of the game (the one with exefs and romfs; a
+     previous installation works too, its extracted\) instead of a packaged copy. Before writing anything it checks that
+     it is Super Mario RPG 1.0.0: the build ID of exefs/main, the title in exefs/main.npdm and the 1,934 files of the
+     RomFS by path and size (the hashes in runtime/game_addresses/romfs_files.h, the same ones the program checks its
+     copy with); anything that is not part of the game is not used. The copy then goes into extracted\: hard-linked if
+     it is on the same drive (no extra time or space) or copied (with progress; it can be canceled and it resumes). When
+     you pick the folder, the window says underneath whether it is 1.0.0; with an installation in the destination
+     folder, it suggests that one on its own. Windowless tests: --game <folder> and --copy-only.
+  2. The name: SMRPG Recomp (the window, the shortcuts, the .exe resources and the suggested folder). Shortcuts with the
+     old name that pointed to the same installation are removed when the new ones are created.
+  3. Repository ready to go public: legal notice (README, GUIDE, the installation's README.txt and LICENSES.txt);
+     LICENSE as pure MIT, with the port's copyright; .gitignore with a safety net (dumped textures, copies of the game,
+     keys, Il2CppDumper and Ghidra output, Lossless.dll, AMD DLLs); .gitattributes (scripts with LF); each PC's tool
+     paths in local.env (local.env.example, tools/local_env.sh); a note in the documents inherited from LASRecomp; the
+     Link's Awakening screenshots and DEBUG_ESTADO.md removed; icon_1024.png and icon.icns with the star.
+  4. Installer licenses: the notices of Vulkan Memory Allocator, of the audio code ported from Ryujinx and of AMD FSR 1;
+     the FFmpeg source code in licenses\sources; the libiconv and GCC source packages, attached to the release.
+  5. Menu > Video: the reference figures say "measured on the test PC" (before, "on this PC").
+
+0.50.3-beta (2026-11-20) — battle step pacing, fixed: 0 steps on frames with no step due
+  1. The bug (found by the review of 0.50.2, which was not published): rt_battle_plan returned 0 in TWO different
+     cases — "pacing does not apply" and "it applies but no step is due on this frame" — and the caller treated both as
+     "business as usual" and took ONE update_common step: at 120/240 the logic still ran at the speed of the limit (240
+     steps per second at 240) plus the planned ones; the counter only counted the planned ones and the measurement did
+     not see it. The plan now returns -1 (does not apply: the original path) or 0..3 (0: this frame does NOT call
+     update_common).
+  2. Measured with an independent counter of the ACTUAL calls to update_common (counted by whoever makes them, on the
+     original path too; it shows in the log when the battle ends, next to the planned steps: they have to match):
+       limit 60:  24.09 s of battle, 1395 steps = 1395 calls, 57.9 per second
+       limit 60:  20.89 s, 1209 = 1209, 57.9
+       limit 120: 20.38 s, 1164 = 1164, 57.1
+       limit 240: 25.14 s, 1432 = 1432, 57.0
+       limit 240: 20.78 s, 1182 = 1182, 56.9
+     Drawing runs at the limit during the battle (60.0 / 120.0 / 240.0 fps). The control run with LARECOMP_BATTLE_FIX=0
+     at 60 (the original: one step per frame, no pacing) gives 21.31 s and 1176 calls, 55.2 per second: the battle
+     itself already skipped 8% of its Update phases (its internal loads), so "~60 per second" is really "whatever the
+     game gives", and pacing is on par with or above the original at every limit.
+  3. Duration with the same script: 20.4-25.1 s in ALL runs, limits mixed — the difference between limits (60: 24.09;
+     120: 20.38; 240: 25.14) is WITHIN the spread between two identical runs (60: 24.09 vs 20.89; 240: 25.14 vs 20.78).
+     What moves the duration is the phase of the button presses relative to the step timeline: the battle entry
+     transition stalls one frame for ~900 ms (946/874/831/835 depending on the run, an engine thing) and that stall
+     trims a different amount of debt each time, so the first timed hit lands at a different point of its window and the
+     battle is settled with a different number of landed hits (1209-1432 steps). With the original (one step per frame,
+     no pacing) the same route gives 21.31 s: within the same range.
+  4. No press is lost, not even on frames with no step: at 240 the button mashing is 8 ms presses (less than half a
+     step) and the battles end in the same time range with the same number of steps — a lost press would leave a menu
+     waiting for the next second and drag it out. The opening of the battle (up to the first phase divergence) matches
+     across limits: captures at the same wall-clock time differ by 2-4.3% (the noise of the fast animations) and the
+     bright-text peak of the first hit window shows up in all three: 2184/2158/2186 pixels at t=3330 (units of 60).
+     LARECOMP_BATTLE_FPS=30 and LARECOMP_BATTLE_FIX=0 (which now also logs its battle and its call rate) work as before;
+     battle_slow (LSFG) is still consistent. Test: a battle script at several limits and its analysis, outside the
+     repository (it now counts the actual calls and their rate).
+
+0.50.2-beta (2026-11-20) — battles draw at the "FPS limit", with their logic decoupled from drawing
+  1. Until now, for as long as a battle lasted the vsync (hle/vi.c) was forced to 60 Hz: its logic advances one 1/60 s
+     step per frame, and with more frames the battle would run faster than its animations and its sound. The vsync now
+     ticks at the "FPS limit" (120, 144, 240...) in battle too, and the BattleManager.update_common steps are paced by
+     BattleManager.update (main 0x7001cd9250, overridden in tools/game_overrides.c) by real time, with the accumulator
+     in hle/battle_rate.c: each frame takes 0, 1, 2 or 3 steps depending on the accumulated time (the debt is capped at
+     4 steps so that it does not spiral if a frame takes very long), and the logic still takes exactly 60 steps per
+     second, like the console. The menu text ("FPS limit") and the comment in battle_rate.c say so.
+  2. Presses are not lost between steps: the controller snapshot (ControllerObserver._npadState: buttons and preButtons)
+     is looked at once per frame, and whatever was pressed or released since the previous step is held and delivered to
+     the next step due, as if the button had been down during that whole console frame (GetButtonDown = buttons &
+     ~preButtons, computed on the fly: the step sees the edges injected into the snapshot, which is restored
+     afterwards).
+  3. (Superseded by 0.50.3: this build had a bug that the review found — the plan's caller took ONE step on frames with
+     no planned step, so at 120/240 the logic still ran at the speed of the limit and that build's measurements were not
+     valid.)
+  4. Whatever is time-based stays the same: the BattleCharacterAnimator animators run on real time (only a slow frame
+     slows them down, as before) and captures at the same wall-clock time come out in the same pose at every limit; the
+     sound comes from the steps (60 per second, like the console). The logic's movement (the positions of the battle
+     characters) advances at 60 steps per second: at 240 the positions change every 4 frames, with the console's
+     granularity; the animators interpolate in between and no stutter shows in the captures.
+  5. LARECOMP_BATTLE_FPS=30 (debug mode: vsync at 60 Hz and two steps per frame, as before: "[battle] ... debug mode",
+     the vsync drops to 60 and comes back on exit) and LARECOMP_BATTLE_FIX=0 (one step per frame at the limit: the old
+     sped-up battle, for comparison: no [battle] lines, at 240 the logic ran at ~210-240 steps per second) still work.
+     Frame generation (vk_lsfg.c battle_slow) is still consistent: the battle needs 60 real frames in which to take its
+     60 steps, and if they do not fit it is turned off while the battle lasts, as before. Tests: a separate battle
+     script (the same route in real time at any limit) and its analysis (duration, steps per second, capture matching
+     and text peaks). Recorded in STATUS.md.
+
+0.50.1-beta (2026-11-20) — the installer ships lsfg.dll and its licenses (never Lossless.dll)
+  The installer now ships the lsfg.dll we build (tools/lsfg, from the code of GameNative's lsfg-vk-android, MIT) next to
+  smrpg-recomp.exe, and its licenses folder adds those of lsfg-vk-android (MIT), DXVK's DXBC translator (DXVK-dxbc),
+  pe-parse (MIT) and volk (MIT), explained in LICENSES.txt. The player's Lossless.dll (Steam) NEVER ships with the
+  installer: it is looked up in their registry and their Steam libraries at startup, and without it generation stays off
+  and the game runs the same. Checked by installing with --auto into a new folder: the installation has lsfg.dll and its
+  licenses, and the installed game, with x2 generation on, finds Steam's Lossless.dll ("[lsfg] active: x2 ... with
+  <Steam library>/steamapps/common/Lossless Scaling/Lossless.dll").
+
+0.50.0-beta (2026-11-20) — Lossless Scaling frame generation inside the game (LSFG 3.1)
+  1. Menu > Video > "Lossless Scaling frame generation" (x2 / x3 / x4), with "Flow scale (LSFG)" (25/50/75/100%) and
+     "Performance mode (LSFG)", and its impact panel with what was measured (GPU and video memory). Generation runs in a
+     separate library built by tools/lsfg/build.sh windows (lsfg.dll, from the code of GameNative's lsfg-vk-android,
+     release branch 437208a, with its submodules) that the game loads on the fly (runtime/nvn/vulkan/vk_lsfg.c); its
+     shaders come from the Lossless.dll of the player's Steam copy of Lossless Scaling (looked up in the registry and in
+     the Steam libraries, or next to the executable; LARECOMP_LSFG_DLL for another path). The Lossless Scaling DLL is
+     the player's: it NEVER ships with the port or the installer, and without it the game starts all the same
+     (generation stays off and the menu says so). The swapchain runs in FIFO with N+1 extra images; the generated frames
+     are presented from the recorder thread before the real one (record.c: rec_QueuePresentCall and rec_present_direct);
+     it does not work with HDR or at the same time as AMD frame generation.
+  2. Measured on an RX 9070 XT (240 Hz display), d01f1b at 1280x720, x2 generation, flow 75%, quality: GPU 1.07-1.22 ms
+     per real frame, present 0.23 ms; video memory 31.5 MB of its own (0.4 on init, 31.2 the context with its pipeline
+     cache) + 21.1 for its images; 0 skipped, 0 failures, 99.5% of the generated frames presented (597 of 600 real ones;
+     ~120 frames per second presented with the game at 60 real). x3: 1.73 ms per real frame. Without the library or
+     without Lossless.dll: the game runs the same (60.0 fps, 0 skipped, "[lsfg] off"), and the capture of the same frame
+     with generation on and off does not change (mean 1.4 / 1.26% of pixels, the noise band of that area's animation).
+
+0.49.7-beta (2026-11-20) — the fades of transitions that do not use GS.Fade fill the whole screen too
+  1. The fade of the title and field-battle transitions does not use GS.Fade: FadeWithEffect (the white one of title ->
+     movie: a DrawCaptureImage with two quads, m_bg and m_fade, GameObjects on their own canvas) and EncountEffect (the
+     wipe when entering a battle, m_img). Their quads are wrapped the same way as GS.Fade (DrawCaptureImage.Update,
+     FadeWithEffect.Update and EncountEffect.Update in hle/movie_fit.c): after the original, they cover their whole
+     canvas (the GameObjects through their own transform, which is the quad's rectangle). In 16:9 nothing changes.
+  2. Measured at 1720x720 (21:9): the wrapped quads do cover everything (the log: "1280x720 -> 1720x720 (the whole
+     canvas)"). The TRANSITIONS still leave bars (the title wipe: 80 in the left bar versus 160 in the center; the
+     battle wipe: 62/137/50): what leaves bars is no longer the quads but their CONTENT — the effect's own capture (its
+     RenderTexture, m_rt, 16:9) and the geometry of the wipe, both the game's own: a deeper layer (widening the capture
+     or its camera), yet to be designed. The white peak of the fade (frame ~2150 of the route) does fill the full width.
+
+0.49.6-beta (2026-11-20) — the RomFS table without the extractor's _filelist.json (1934 files, 6820987323)
+  1. The RomFS file table (runtime/game_addresses/romfs_files.h, from tools/romfs_files.py) counted _filelist.json, the
+     extractor's manifest at the root of the romfs: it is not a game file. And the two ROMFS_FILES (launcher.mm and
+     crash_explain.c) were still at 3836, LAS's number! — the crash explainer's "incomplete files" warning would fire
+     for any SMRPG crash. Now: the table without the json (1934 entries), ROMFS_FILES 1934 in both places, the
+     launcher's walker and the mount audit (services/fs.c) skip the json, and game_romfs_bytes goes from "IVFC size +
+     0x200" (never equal to the sum of the files: the "damaged files" warning ALWAYS fired) to the real sum of the 1934:
+     6820987323.
+  2. Measured: on mount, "1935 files served" (the mount serves everything, as it should), and the audit is CLEAN: no
+     "not one of the game's files" and no "damaged or changed" (6820987323 = 6820987323); rt_romfs_files = 1934 =
+     ROMFS_FILES. The regenerated table differs from the previous one in a single line (the one with the json's hash).
+
+0.49.5-beta (2026-11-20) — translator, from the android branch: SHFL with its c operand, MUFU with the angle reduced and
+  the "bra self" padding with -16
+  1. SHFL ignored its c operand (the bound and the segment mask of PTX's shfl semantics): each quad measured its texture
+     derivative against another one, far away, and the level of detail shot up (on the Adreno the lava came out a flat
+     color; on PC, those textures somewhat blurry). The index is now relative to its segment and to the Switch's group
+     of 32 within the subgroup. MUFU.SIN/COS: the angle is reduced to [-pi, pi] before the sine or cosine (Cody-Waite;
+     on the Switch RRO does it, which did nothing here). And the shaders' closing "bra self" now also counts with the
+     -16 jump to the control slot: URP's LutBuilderLdr no longer goes inside a loop with a switch. (From the android
+     branch: the rest of those changes is for the Adreno and is not included.)
+  2. Measured (RX 9070 XT): captures of the 6 areas before and after, three per area — ALL within the animation noise
+     between launches (at most 0.9% of pixels changed; 1-2% is normal): the shading does not change in the test areas.
+     Per-pass GPU timestamps in d01f1b frame 3000: FSR 0.41 -> 0.40 ms and the 151-draw pass 0.26 -> 0.25 ms: no cost.
+     ("Clear targets" does not appear anywhere in the android branch: the translator diff gives exactly SHFL, rr2pi and
+     BRA-16, and the rest is the Adreno's 64-bit integer machinery.)
+
+0.49.4-beta (2026-11-20) — the installer accepts paths with forward slashes
+  1. If --dest (or another path argument) was given with forward slashes (D:/folder/), the installer did not create the
+     folder and with --auto it closed within 3 s without writing anything: its paths carry the \\?\ prefix (long paths),
+     which only accepts backslashes. Argument paths (--dest, --screenshot and the others) are now normalized on
+     arrival: / -> \ and no trailing slash (the root of a drive stays as is) (tools/installer/installer.c).
+  2. Tested with --auto and --dest with forward slashes to a new folder: it creates it, writes install.log and starts
+     building (canceled at 20% of the compilation, with the copy of the game already in place). The new installer:
+     build/dist/SMRPG-Recomp-Instalador-0.49.4-beta.exe (113,701,662 bytes).
+
+0.49.3-beta (2026-11-20) — local memory of the size the shader's SPH asks for, not always 1 KB
+  1. Every shader with LDL/STL carried 256 words (1 KB) zeroed at every pixel, even though the shader's own SPH says how
+     much it needs: on the Adreno 740 one in the lava room of Bowser's Keep (fs def772159b2635d0) cost 57 ms per frame
+     just because of that. From the android branch (0.3.0-alfa), only the lmem part (without the rest of that change,
+     which is for the Adreno): runtime/nvn/maxwell/translate.c declares "uint lmem[N]" with N from the SPH size (bytes:
+     low + high + CRS stack / 32, like Ryujinx, rounded to a power of two), grows N if any fixed-offset LDL/STL goes
+     past it, and addresses still wrap with & (N-1). LARECOMP_LOG_LMEM=1 writes a line per shader with its N (when
+     translating it) and LARECOMP_LMEM_FULL=1 brings back the usual 256.
+  2. Measured (RX 9070 XT, d01f1b frame 3000, per-pass GPU timestamps): the only shader with lmem in the scene asks for
+     4 words (16 B, 1/64th). The two heavy passes of the frame, one sample each: AMD FSR 0.81 -> 0.41 ms and the
+     156-draw pass (fs 3c955864ef927102) 0.49 -> 0.26 ms. Captures of the 6 areas before (0.49.2) and after, three per
+     area: all within the animation noise between launches (the worst, mean 0.98 and 1.19% of pixels changed; the same
+     as the 0.49.0 matrix and the 0.49.1 regression run gave): the shading does not change.
+
+0.49.2-beta (2026-11-20) — each IPC message is logged only with LARECOMP_LOG_IPC=1
+  1. The game's log grew by ~9.4 MB per minute: 53,000 [ipc] lines per minute (99% of the text, on PC too), written from
+     the game's threads and in 18 pieces per message that other threads cut into. From the android branch (0.7.2-alfa),
+     as is: each message leaves a line only with LARECOMP_LOG_IPC=1 (a single log call, the getenv cached;
+     runtime/ipc.c). With the gate open it comes out the same as before.
+  2. Measured (f01out, 110 s hidden): before, 16.4 MB and 92,098 [ipc] lines (9.4 MB/min; pc_d02out and pc_m01c1f1a the
+     same); after, 36 KB in the whole log and 64 [ipc] lines (0.4 KB/min, ~25,000 times less). The game is identical:
+     60 fps, 0 draws skipped, and the capture of frame 5,000 the same as that of 0.49.1 (mean 0.02, 0.02% of pixels
+     changed).
+
+0.49.1-beta (2026-11-20) — the first row and the last column of the image no longer come out dark
+  1. At any resolution (measured at 1600x900, at 1280x720 and at native 1920x1080, 1:1), the first row (top) and the
+     last column (right) of the game's image came out half blended with black (1600x900: row 0 at 43 of 89). It was not
+     the scaling: at native 1:1 it was still there, and the game's viewport and scissor and the runtime's scaled
+     products are exact (1920 x 0.667 = 1280.0 in float). Raw dumps of the exact buffer contents (LARECOMP_SHOT_RAW,
+     new): the game's own post chain leaves the last row and the last column of its intermediate buffers unwritten (an
+     exact 0 right next to a written 122) and its final blit blends them into the edge of the image; with the Y flip,
+     the bottom row becomes the top one: that is why it darkens at the top and on the right and not at the other two
+     edges. It is the game's output, faithfully reproduced, so "present" replicates the edge: the outermost sample lands
+     on the center of the second texel (runtime/nvn/vulkan/shaders.c present.frag, 10 lines; the same pipeline draws the
+     window and the captures).
+  2. Measured (RX 9070 XT, hidden test runs with the data folder isolated, f01out, frame 3000): before, row 0 = 70.9
+     versus row 1 = 124.9 and last column 66.7 versus 89.4 (1280x720); with the fix, row 0 = 124.8 = row 1 and column
+     89.7 = 89.7. At native 1920x1080: row 0 = 124.6 = row 1 (before 65.5). With LARECOMP_NO_EDGE_FIX=1 the artifact
+     comes back (row 0 = 76.4): the A/B. Captures of areas (d02out and m01c1f1a) versus those of 0.49.0: the outer ring
+     changes (the replication: mean 10-16) and the interior stays within the animation noise between launches
+     (mean <= 1.2 and at most 1.3% of pixels changed, the same as the 0.49.0 matrix gave).
+  3. New debugging (docs/debug-hooks.md): LARECOMP_SHOT_RAW=1|2 (the exact contents of the texture next to the PNG, or
+     only the raw one, fast — that is how the passes of a debug frame were dumped), the [dumpr] line and
+     LARECOMP_DEBUG_PASS_STRIDE/_FROM/_TO to dump only some of those passes. This edge was hunted down with them.
+
+0.49.0-beta (2026-11-19) — no black silhouettes when entering an area already seen: the code of every shader is saved
+  and everything seen is prepared at startup
+  1. 0.48's own shader list (cache/shader_seen.txt: only the pipeline keys) was not enough: without the shaders' code,
+     the startup preparation had nothing to build from, and on entering an area the game compiled each pipeline the
+     first time it was used, skipping its draws in the meantime (f01out: peak of 9,686 skipped draws and 68 pipelines
+     compiled in 2 s — black silhouettes). The runtime now also keeps a copy of the code of every shader it uses
+     (cache/shader_code/<hash>.bin: shader_code_note in runtime/nvn/shader_seen.c, with its writer thread; called from
+     draw_ and compute_program in runtime/nvn/vulkan/exec.c) and the background preparation at startup
+     (runtime/nvn/shader_prep.c) builds from those copies every pipeline in the list while the logos are on screen
+     ("[shader] prepared N + M seen before" in the log; code it does not find is remembered and not retried). A shader
+     seen once is ready from the second launch on. LARECOMP_SHADER_SEEN=0 turns off list and copies (nothing recorded,
+     nothing prepared).
+  2. From the android branch (0.8.1-alfa), without the Android parts: on PC depth test, write and compare are dynamic
+     state (DYN[] in exec.c), the lines of the list carry no " z=" and g_prep_needs_depth stays false — the depth state
+     baked into the pipeline that the Adreno requires is not needed (that branch's PC version, measured the same way:
+     104 pipelines compiled on use -> 0; 2,824 skipped draws -> 0). docs/debug-hooks.md with the rows for
+     LARECOMP_SHADER_PREP, LARECOMP_SHADER_SEEN and LARECOMP_PREP_CHECK.
+  3. Measured (RX 9070 XT, hidden test runs with the data folder isolated, the f01out scene, captures past frame 2,700):
+     before, peak of 3,205 skipped draws and 76 pipelines in the entry window (9,686 and 68 in that day's baseline: the
+     storm falls in different 2 s windows); 1st launch: 172 pipelines prepared in 0.8 s, peak of 162 skipped (lines
+     still without a copy get recorded on their own as you play); 2nd launch in a row: 256 prepared in 0.85 s, 0 skipped
+     draws and 0 pipelines compiled frame by frame on entry, 60 fps. The other areas on the 1st launch: d01f1b 859 ->
+     37, d02out 552 -> 321, m01c1f1a 3,094 -> 404, d03out 268 -> 64, d04b1 201 -> 21, chest 562 -> 358 (repeating the
+     area, down to 0, like f01out). Captures before/after of the 6 areas and of the chest: identical (mean
+     difference <= 1.1 and at most 1.3% of pixels changed by >20; in f01out, 0.03): nothing broken.
+
+0.48.1-beta (2026-11-18) — the fade to black in transitions covers the whole widescreen
+  1. On a screen wider than 16:9 (21:9), the fade to black when entering an area from the map, when entering a house and
+     in the other transitions covered only the 16:9 in the center: at the sides you saw the camera's background color
+     while the area loaded (a khaki) or the new area ahead of time. The game's fade (GS.Fade) is a 16:9 UI image; it now
+     covers its whole canvas, as the movies' fade already did (runtime/hle/movie_fit.c: GS.Fade.Update is wrapped). The
+     scenes' shaped fades (circle, star) take another path and do not change; the heart one uses a separate shape. In
+     16:9 nothing changes.
+  2. Tested in 21:9 (1720x720) with the save on the world map and A: the two transitions of the route, previously with
+     the sides khaki or with the new area, are now black from side to side (5 captures with bars at 91 before, 0 now).
+
+0.48.0-beta (2026-11-17) — the installer builds the game code in a single process, on any PC
+  1. Everything inside the installer, with no child processes (0.47.0 launched smrpg-recomp.exe --build-game, which
+     launched the frozen generator and one zig.exe per file: ~30 processes at once). It now loads builder\builder.dll
+     (tools/installer/game_builder.cpp), which works with threads:
+     - the generator (tools/gen.py, the same one) in an embedded Python: python312.dll from python.org's "embeddable"
+       distribution 3.12.10 (pinned sha256; signed by the PSF), isolated with python312._pth (it does not look at the
+       PC's Python or variables), with capstone, unicorn and lz4; sdk and then main, while whatever has already come out
+       is compiled;
+     - clang 23.1.5 as a library (MSYS2's libclang-cpp and libLLVM) compiles the 1,056 files in a thread pool, with the
+       same -cc1 line as `make`;
+     - lld as a library (its MinGW driver) links lasgame.dll with the link line of `make` (game_overrides.o before the
+       generated code, --allow-multiple-definition).
+     Checked: the generated C is byte-for-byte identical to that of `make gen` (871 + 184 files) and the 1,056 objects
+     to those of `make` except for the 4 timestamp bytes in the COFF header. There is a single process during the whole
+     installation, the installer (22 threads at most, no child process: watched every 3 s during entire installations).
+  2. Everything it needs ships with it, in builder\ (316 MB): builder.dll; LLVM, clang and lld (the MSYS2 DLLs and the
+     ones they load); the embedded Python with the generator; the clang headers (all of them) and, of the MinGW-w64
+     ones, the 22 that the game code includes (obtained with clang -MD for x86-64-v3, -v2 and x86-64, and verified by
+     compiling with only those); the MinGW-w64 CRT and libgcc for linking (tools/installer/toolchain.sh). All the PC
+     needs is 64-bit Windows 10 or 11. zig and lasgen are no longer included.
+  3. Any x86-64 CPU: the game code is compiled for x86-64-v3 (AVX2, FMA, BMI2..., like `make`) if the CPU has it (CPUID,
+     with XGETBV for the YMM registers); if not, for x86-64-v2 or x86-64. lasgame.dll.cpu records it. smrpg-recomp.exe
+     no longer requires AVX2 at startup (the program itself is baseline x86-64) and, when loading the library, it checks
+     that this CPU can run it (a label it does not know is refused too): if the folder was taken to another PC, it asks
+     for the installer to be run again. Checked with SMRPG_CONSTRUIR_CPU=x86-64-v2 (as on a CPU without AVX2): its
+     objects do not have a single VEX, FMA or BMI2 instruction (counted: the x86-64-v3 ones have thousands) and the game
+     still gets as far as the Paratroopa battle. Without FMA, every multiply-add in the game goes through Windows' fma()
+     (ucrtbase): with its non-FMA3 path (_set_FMA3_enable(0)) it rounds exactly like the instruction in 20 million
+     cases, cancellation ones included (so the game computes the same), but slower (84 versus 16 ns per fma/fmaf pair).
+     The game code only uses generic compiler builtins (vectors, bswap, clz...): it also compiles for x86-64 without
+     SSE4. Not tested on a real CPU without AVX2 (nor the AMD FSR DLLs, which barely use AVX and check the CPU with
+     CPUID).
+  4. What came up while testing it (with gdb):
+     - the stack: clang and LLVM recurse very deep in the huge functions of the generated code
+       (MemorySSAUpdater::recursePhi); with the 2 MB of a normal thread, the process crashed without warning about
+       halfway through (0xC00000FD). MSYS2's clang.exe runs with 16 MB and zig with 46: the builder's threads reserve
+       64 MB (address space only) and run at below-normal priority, so that the PC stays responsive;
+     - LLVM's CrashRecoveryContext (on MinGW, an exception handler for the whole process) was disabled entirely by the
+       access faults that unicorn triggers and catches on purpose. There is now a safety net of our own, only on the
+       compilation threads: a fault inside clang, or a fatal LLVM error (which would call exit and close the installer),
+       becomes an error of that file. LLVM's is turned on only during linking, where lld needs it (on a fatal error, lld
+       calls exit);
+     - the process hung on exit: lld's thread pool (llvm::parallel) stayed alive and its static destructor waited for
+       threads that Windows had already killed. lld links with --threads=1 (0.6 s) and, just in case, the installer
+       terminates outright if it got to load the builder (its logs are unbuffered).
+  5. Canceling returns right away: the threads finish the file they had in hand on their own (the largest takes ~3 min)
+     and installing again waits for them. Closing the window closes the entire process.
+  6. What is already built is reused if neither the game, nor the generator, nor the way of compiling changes (base.txt:
+     no paths, moving the folder does not invalidate it; with the contents of the clang and MinGW-w64 headers).
+  7. Updating a 0.47 (its LEEME.txt says so, checked before copying anything): it removes, by name, the 98 files of its
+     lasgen\ and its zig\ and two licenses that are no longer included, and then those folders if they end up empty
+     (whatever is not its own stays; nothing inside a link); the zig cache (extracted\.gamebuild) too; and it compiles
+     everything once with the new builder.
+  8. Licenses: LLVM, clang and lld (Apache 2.0 with the LLVM exceptions), libffi, libxml2, zlib, the embedded Python and
+     its libraries, the MinGW-w64 headers and CRT, libgcc and crtbegin/crtend; the BSD-2 notice of the LZ4 library
+     contained in the Python bindings (from their PyPI source code, verified by sha256); MSYS2-fuentes.txt with the
+     exact MSYS2 source package of everything that comes from there; the source code of Unicorn (GPL 2, now inside the
+     installer's process) and that of the installer and its builder with its Makefile, in licenses\sources (and `make`
+     checks that those sources contain no paths from this PC). Without unzip: toolchain.sh and licenses.sh open the zips
+     with the Python in build/gen-venv.
+  9. Review before publishing (2 reviewers, read-only; the findings, verified by me): 21, all fixed except two minor
+     leftovers (below):
+     - Control Flow Guard (LAS Recomp #337): if Windows imposes it on every program, unicorn took the installer down
+       outright (reproduced with CFG forced by the process policy: 0xC0000409 as soon as it starts generating). The
+       installer now sees it on opening and reopens itself with CFG turned off by the process creation policy
+       (Get-ProcessMitigation: CFG enabled in the first one, disabled in the one doing the work), which installs fine;
+       if it could not, it explains why instead of building. The builder also refuses, with a message;
+     - the net, tested on purpose (SMRPG_CONSTRUIR_PRUEBA_FALLO=<chunk>:1 or :2): an access to address 0 and exhausting
+       the stack of a 64 MB thread, inside the compilation of a chunk, come out as an error of that chunk and the
+       process goes on; after that, the process is marked and building again asks for the installer to be reopened (what
+       was compiled is kept), because whatever clang had half done, and perhaps a lock, stayed that way; waiting for
+       whatever is left from the previous run is capped at 20 min;
+     - out of memory: a `new` with no memory ended in abort without saying anything; now it is an error of the chunk
+       (and std::terminate leaves a line in the log). The compilation threads are also limited by free memory (2 per
+       GB);
+     - the number of chunks is read by the generator's thread from its entire log when it finishes (before calling the
+       module done), and the log is not read until the generator starts (if the one from the previous run cannot be
+       deleted, another name is used): neither can the table come out before a chunk nor can an old count be read.
+       gen.key is written by the generator when it finishes: canceling while compiling no longer forces it to generate
+       again (checked: canceling at 15 s, in the middle of generation, and the next run reuses what was generated);
+     - a damaged object (a power cut can leave it renamed and full of zeros) is no longer reused (its COFF header is
+       checked); if the link fails, what was saved is discarded and everything is redone the next time; its .src is
+       deleted before compiling it; the rename is retried (an antivirus) and its failure is explained; if the Windows
+       hash fails, no hash matches; no .cpu while the library is being swapped (the highest level is required);
+     - Python isolated from the PC's variables too (Py_IgnoreEnvironmentFlag, Py_IsolatedFlag, Py_NoUserSiteDirectory)
+       and, before starting it, a check that python312.zip, ._pth and vcruntime140.dll are there (without them, Python
+       calls abort);
+     - retrying in the same session: whatever in builder\ is already loaded is left if it is complete (it used to say
+       "is the game open?"), whatever is missing is written; canceling just before building no longer starts the
+       generator; finishing well counts as such even if the cancellation arrives during linking; if construir_juego is
+       not there, an error instead of calling into nothing; if another DLL with the name of one of its own is already
+       loaded (an Explorer extension), the message names it; SMRPG_CONSTRUIR_CPU only accepts the three levels;
+       GetLastError intact in the handler; `make`'s temporary files kept out of what ships, which only accepts what is
+       expected.
+     Remaining, for the record: during linking (0.6 s), an exception in another thread would turn off LLVM's
+     CrashRecoveryContext, and a fatal lld error would then close the installer; and clang, if its parser runs out of
+     stack, goes on in an 8 MB thread of its own without the net (the generated C is flat: it does not happen).
+  Measured on a Ryzen 7 9800X3D (16 threads, 64 GB): full installation 12 min 42 s, in a folder with "ñ" and accents
+  (building: 756 s; peak process memory 4.6 GB); updating a 0.47 (everything is compiled once): ~13-15 min; updating on
+  top of a 0.48: 3 s. Installer: 113.6 MB (0.47.0: 98 MB). Windows Defender: no threats. Checked by playing (hidden) in
+  all three: title, Mushroom Way and the battle against the Paratroopa. Standalone test of the builder:
+  tools/installer/test_builder.c (also canceling and building again).
+
+0.47.0-beta (2026-11-16) — installer: the port from your own copy of the game, with nothing from the game inside
+  1. SMRPG-Recomp-Instalador-<version>.exe (tools/installer, `make installer`): a window with your copy of the game
+     (version 1.0.0) and the installation folder. Installing:
+     - copies the program it carries inside (zstd at the end of the .exe): the release executable, its DLLs, the frozen
+       lasgen generator, a slimmed-down zig, gamelib-src (with tools/game_overrides.c), the AMD FSR DLLs, fonts and
+       licenses;
+     - puts the files of your copy in extracted/exefs and extracted/romfs; exefs/main must be 1.0.0 (build e968832c...).
+       Each file is written as a .part and renamed when done: if interrupted, it resumes (since 0.51.0-beta you pick an
+       already extracted copy: see that version);
+     - builds the game code on that PC: smrpg-recomp.exe --build-game <folder>\extracted (runtime/main.c), LAS Recomp's
+       gamebuild_run with its progress on standard output (the program's log, build.log); measured on a Ryzen 7 9800X3D
+       (16 threads): 1,056 C files in 11 min (the generator, 1 min; the biggest function, main_189.c, 3 min), a 265 MB
+       lasgame.dll with the same 154,122 + 39,483 functions as the `make` one. Whole installation: 11 min; updating on
+       top (what is already compiled is reused): 46 s;
+     - creates the shortcuts (desktop and Start menu) to smrpg-recomp.exe --play.
+     It checks the folder first (writable, 110 characters at most: the longest RomFS path is 137 and the program does
+     not use long paths; ~11 GB free). Installing on top updates: save/ and larecomp.ini stay. Log: install.log.
+     Windowless tests: --dest/--no-shortcuts/--auto/--hidden, --screenshot <bmp>; SMRPG_INSTALLER_SHORTCUTS=<folder>
+     leaves the shortcuts there.
+     Before touching an earlier installation it checks that the game is not open and the version of your copy (all
+     before writing anything): if something fails, the installation that worked stays as it was. It clearly reports:
+     another version of the game, an incomplete copy, the game being open.
+     Checked with the installed copy (hidden): the title, a new game (choosing the difficulty, the opening movie) and,
+     with a copied save, Mushroom Way and the battle against the Paratroopa, with the game_overrides.c replacements
+     active ([unity] game screen, [battle]). Windows Defender: no threats.
+     Review before publishing (2 reviewers + 2 verifiers, read-only): 15 findings, 12 confirmed, 1 plausible and 2
+     refuted, all fixed: the window follows its monitor's DPI (with the system's, on a 150% monitor "Browse…" and
+     "Install" fell outside it), the order above, the game being open (it used to say "the installer is damaged"), the
+     final text according to the shortcuts created, empty error messages, Cancel with no error box, --pack checks its
+     writes, the licenses (below), `make installer` freezes the generator again if its sources changed (its GAMELIB_ID),
+     the main.c warning only when opened with a double click (not in tests), and --build-game in a working copy uses
+     build/zig-slim. The test screenshot (--screenshot) paints with WM_PRINT: the DWM one came out blank off-screen;
+     SMRPG_VENTANA_FUERA=1 with --auto runs the whole installation with the window off-screen.
+  2. runtime/gamebuild.c for SMRPG: it compiles gamelib-src/game_overrides.c and links it before the generated code with
+     -FORCE:MULTIPLE (lld-link keeps the first definition for calls from other files, like --allow-multiple-definition
+     in the Makefile: checked with two objects); the import library is smrpg-recomp.dll.a; `zig cc` does not let that
+     option through, so the slimmed-down zig is needed (zig/rt). With zig, the optimization level is forced:
+     `zig cc -O1` is its ReleaseFast mode and it passed clang -O2 with the frame pointer in every function (measured
+     with -v); now the requested -O also goes in with -Xclang (the last one wins) and with -fomit-frame-pointer, like
+     `make` with clang -O1. Measured: main_189.c (a huge function) took ~18 min and the whole build 20; with -O1, 170 s
+     for that file. Its cache signature changes ("zig-O"): what was compiled at -O2 is not reused. The progress bar
+     counts half bytes and half files once the generator is done (the huge functions at the end left it at 88% half the
+     time).
+  2b. tools/gen.py: the extra chunk (the functions only reached through computed jumps: main_868.c in 1.0.0) counts
+     toward the number of chunks and is announced in the progress; the build on the player's PC only compiles the
+     announced ones and was leaving that one out (f_70007e1dd0 and f_7000d799f8 were missing when linking). `make` does
+     not change: it compiles them all.
+  3. smrpg-recomp.exe goes straight into the game without --play too (the start screen is Link's Awakening's), and if
+     the game files or its code are missing it says what to do (run the installer again).
+  4. What ships: the release executable (no console) with the LGPL FFmpeg from `make deps-windows` (only VP9, VP8,
+     Vorbis, Opus, H.264, AAC); `make gen-helper` in its own environment (build/gen-venv: capstone, unicorn, lz4,
+     PyInstaller); tools/zig_slim.sh also keeps the headers of game_overrides.c and writes link.rsp without external
+     programs (with ucrt64 first in PATH, basename clobbered the start of the file). The target checks that it carries
+     no GPL codecs, nothing from the game and no paths from the PC that builds it. tools/installer/licenses.sh: in
+     licenses\ the texts for everything that ships with the program (FFmpeg LGPL, SDL3, Opus,
+     shaderc/glslang/SPIRV-Tools, libiconv, GCC, MinGW-w64, zstd, ImGui, SMAA, Python, PyInstaller, Capstone, lz4,
+     Unicorn GPL 2, AMD, the fonts) and, in licenses\sources, the source code of Unicorn 2.1.4 (the PyPI sdist, checked
+     by its sha256) and that of the frozen generator (lasgen-fuente.zip), because lasgen contains Unicorn.
+
+0.46.1-beta (2026-11-16) — why AMD FSR lowers FPS at a high internal resolution: measured, and explained in the menu
+  1. Measured (RX 9070 XT, 3440x1440 window, Mushroom Way, HDR, no frame generation): with the 2160p internal resolution
+     the game renders at 5160x2160 (11.1 million pixels, 2.25 times the display's) and AMD FSR works at that size. Its
+     pass (with the copy of the result back to the scene) costs: FSR 4, 3.1 ms per frame (1.4 ms at 3440x1440: it grows
+     with the pixels, its neural network goes over all of them); FSR 3.1, 2.25 ms; FSR 2.3, 1.7 ms. SMAA, nothing
+     measurable (3.25 ms per frame against 3.26 without anti-aliasing). The whole frame, at 2160p: SMAA 3.25 ms
+     (240 FPS, the cap; GPU at 78%); FSR 4 5.5 ms (~175 FPS, GPU at 96%: the GPU's limit); FSR 3.1 4.6 ms (~210);
+     FSR 2.3 4.1 ms (~234); FSR 4 "Quality" (renders at 3440x1440 and FSR 4 upscales to 5160x2160) 4.35 ms (~220). FSR 4
+     with the 1440p internal resolution (the display's): 3.25 ms and 240 FPS with the GPU at 78%, the same as SMAA
+     at 2160p. FSR 4 at 2160p with frame generation and the limit at 120: 120 frames + 120 generated = 240 on screen,
+     GPU at 83%. What the port adds around FSR is small: without the copy back, 0.1-0.25 ms less; without auto exposure,
+     nothing measurable (tried and left as it was).
+  2. Menu > Video, the impact box of "Anti-aliasing" and "FSR version": FSR 3.1 and 2.3 were estimated at half of FSR 4
+     and measure 72% and 54%; they now use those factors (with "Automatic", the version that actually runs, from the AMD
+     FSR status) and the measurements above. With the internal resolution above the window's, one more line: FSR works
+     at the internal resolution (how many times the window's pixels), what it would cost at the display's and what to do
+     for more FPS (that resolution, "FSR quality" or frame generation with the limit halved). Checked in a screenshot of
+     the menu at 2160p with FSR 4: it fits above the buttons.
+  3. Testing: the GPU profiler (LARECOMP_GPUPROF_AT) gives AMD FSR its own row ("AMD FSR WxH -> WxH (version N)");
+     LARECOMP_SET accepts fsr_version (0 automatic, 4, 3, 2).
+
+0.46.0-beta (2026-11-16) — true black, movies that fill 21:9 and battles that stay in sync above 60 FPS
+  1. Menu > Video > Image > "True black" (on). The whole loading screen and the sides of the movies in 21:9 looked a
+     very dark olive green instead of black: (13, 13, 0) in sRGB, and brighter with HDR. Widescreen was not the cause:
+     it is the game's own color grading. URP's post-processing runs the scene through a LUT (a 1024x32 RGBA8 strip, 32
+     slices of 32x32, drawn every frame by the ColorGradingLut pass) whose entry for black is (1, 1, 0)/255; where there
+     is nothing in front (loading, the sides of a movie, the scene before a fade) that veil remains. Measured with the
+     pass dump of frame 1100: pass 000 is the LUT and 005 the post-processing of the empty scene, (1, 1, 0) linear. Now,
+     when that pass ends, the LUT is rebuilt with its black at 0 ((c - n) / (1 - n), n = its black texel; the rest
+     changes by 0.4%). Only a small veil is removed: completely up to 2/255 and less and less up to 6/255, with no
+     jumps; a higher black is deliberate (tinted shadows, color fades) and is left alone. Only after a real draw of the
+     LUT: the single-target pass of its shape whose last draw used URP's LutBuilderLdr shader (its hash); a clear or
+     another texture of the same shape is not touched, and another shader on such a target shows up in the log. The UI
+     and the movies do not go through the LUT: they do not change. The pass dump saves the LUT as the game draws it.
+     Measured afterwards: the sides of the movies, (0, 0, 0). runtime/nvn/vulkan/exec.c lut_black_fix, vulkan/shaders.c
+     lutblack.frag; true_black setting.
+  2. Menu > Video > Display > "Widescreen movies": Fill the screen (default) or Black bars. The game's movies are 16:9
+     and their player (MoviePlayer: a 1280x720 RawImage on a canvas with a 1280x720 reference) left them in the center.
+     Fill: the RawImage grows at the video's aspect ratio until it covers the canvas (in 21:9 it crops a little at the
+     top and bottom; in 16:10, at the sides), without stretching. The animated title background (it loops, with the logo
+     right against the top) stays in 16:9. The player's fade to black now covers the whole screen. It applies live (also
+     when the window or widescreen changes). MoviePlayer.Update wrapped with hle_override: runtime/hle/movie_fit.c;
+     movie_fit setting.
+  3. Battles: always at 60 FPS, as on the console, with any "FPS limit". The battle logic (turns, hits, the timed hit
+     windows, the sounds) advances one 1/60 s step per frame (BattleManager.update), while the character animations and
+     the sound are time-based; with the limit at 240 the battle ran at 240 steps per second, four times faster than its
+     animations: timed hits, sound and speed, all out of sync. Now, for as long as a battle lasts (from
+     BattleManager.set_frame_rate, replaced in tools/game_overrides.c, until the game sets its rate back to 0), the
+     vsync that paces Unity ticks at 60 Hz (runtime/hle/battle_rate.c, hle/vi.c); outside battles, at the usual limit.
+     With frame generation, 120 on screen. The game asks for 60 in battle (its 30 mode with two steps per frame is for
+     debugging). The vsync thread only reads a flag the game updates every frame (rt_battle_poll), not the game's
+     memory. AMD FSR now receives the measured time between frames (before, 1000 / the FPS limit, wrong if the game did
+     not reach the limit).
+  Tested (hidden test runs at 2560x1080 with the data folder isolated):
+  - black: the sides of the title and opening movies, from (13, 13, 0) to (0, 0, 0); the loading screen between the
+    title and the game, black; turning it off live (LARECOMP_SET true_black=0) brings (13, 13, 0) back, and turning it
+    on removes it;
+  - the movies: the opening (movie_001) fills the 2560x1080 from its first frame (the RawImage, 1280x720 -> 1707x960 on
+    a 1707x720 canvas); the title (movie_017, looping), in its 16:9 with black bars; movie_fit 0 / 1 live;
+  - the battle: three runs that attack the same Paratroopa at the same real second (at 60 Hz, like the console; with the
+    limit at 240 without the fix; and with it), screenshots from +0.25 to +4 s after pressing Attack. With the fix, the
+    same images as at 60 (mean difference 0.13 - 0.40: FSR noise); without it, 0.87 - 3.62: at +2 s the whole turn was
+    already over (Mario's attack and the counterattack) while at 60 Mario was still going back to his place. The vsync
+    stays at 60 Hz during the battle and goes back to 240 when it ends, with the game at 240 FPS again.
+  - the menu: the new row shows with its accented letters.
+  - after the review: with the limit at 240 since before the battle, the vsync drops to 60 Hz when it starts and goes
+    back to 240 when it ends (the game, 240 FPS before and after); at 3440x1440 with frame generation and HDR, the
+    battle at 60 with 120 frames on screen and the movie filling it (1720x720 canvas).
+  Review (two reviewers and one verifier, read-only): 7 findings, all low severity. Fixed: the 2 confirmed ones (the
+  pass dump saved the already corrected LUT; FSR's frame time) and the 2 plausible ones (the LUT recognized only by its
+  shape; the hard cutoff of the threshold). 3 refuted because SMRPG does not restart the game inside the process; even
+  so, the movie hook is registered only once and the vsync thread no longer reads the game's memory.
+  Remaining (from before): the fade to white from the title to the opening belongs to the title's 16:9 panel and does
+  not reach the sides.
+  New test hooks: LARECOMP_SET with true_black and movie_fit; LARECOMP_BATTLE_FIX=0 (as before) and
+  LARECOMP_BATTLE_FPS=30; LARECOMP_LOG_MOVIE_FIT=1 (the sizes the movie fit sees).
+
+0.45.1-beta (2026-11-16) — x.y.z-alfa / -beta numbering
+  Versions move to x.y.z with an alfa or beta suffix (above): on GitHub, the 46 releases (v0 to v45) were renamed with
+  their new tag on the same commit (vN -> 0.N.0-alfa / -beta) and titles without "Version N" or "vN"; here and in
+  STATUS.md, the same.
+  The version is shown: on the menu's Quit tab (Version) and on the first line of the log ([info] ... 0.45.1-beta).
+  runtime/app_name.h APP_VERSION. (The base's, LARECOMP_VERSION, is still the tag of the shader caches: changing it
+  would have emptied them.)
+
+0.45.0-beta (2026-11-16) — Video: the meter, the impact and the buttons in the box on the right, always in view
+  The description box (to the right of the Video tab), from top to bottom:
+  - at the top, always there and small: the "NOW" meter (CPU, GPU with its ms per frame, RAM, SSD, VRAM; a colored dot
+    each);
+  - the description of the selected setting (with its scroll bar if it is long);
+  - right above the buttons, that setting's impact: "IMPACT: <setting>", the five traffic lights with what it uses of
+    each ("+1.8 ms", "502 MB"...) and the reason, with what was measured;
+  - at the bottom, always the same: Save, Undo, Reset, Restart and a status line ("Saved at...", "Press again to
+    confirm", "Restart pending: the language"). Reset and Restart ask to be pressed again.
+  The list on the left now has only the settings (no meter, no dots under each row, no button section). With a
+  controller or keyboard: Down from the last row goes to the buttons, left / right between them, Up goes back to the
+  list. runtime/ui/option_rows.mm (opt_pane_header, opt_pane_footer, opt_pane_button, opt_impact_next with its figures),
+  runtime/ui/menu.mm (meter_header, buttons_footer).
+  Tested (hidden test runs, 3440x1440 with 4K internal and frame generation): the impact block shows with the selected
+  setting (4K: GPU red 5.4 ms, 65% of a frame at 120 FPS; VRAM 502 MB); the navigation to the buttons and back; Undo,
+  Reset and Restart from the buttons (LARECOMP_MENU_PRESS with its id: save, undo, reset, restart).
+
+0.44.0-beta (2026-11-16) — settings buttons and each graphics setting's impact on CPU, GPU, RAM, SSD and VRAM
+  Menu > Video:
+  - "Performance now" (at the top): what the game is using, measured every half second, with traffic light colors: CPU
+    (% of the processor), GPU (% busy, from the Windows counters: frame generation included; and ms per game frame, from
+    the render timestamps), RAM (the process's physical memory), disk (MB/s read + written) and video memory (what is
+    used and what the driver allows, with its breakdown: render targets, textures, HD textures, AMD FSR, frame
+    generation). runtime/perf_meter.c; LARECOMP_LOG_PERF=1 writes it to the log.
+  - Under each graphics setting, its impact with the current value on CPU, GPU, RAM, SSD and VRAM (a green, yellow or
+    red dot each) and the reason, with figures, in its description. Video memory is what is measured live (each class
+    exact; AMD FSR and frame generation, what AMD reports for their contexts); the GPU, against the time of a frame at
+    the FPS limit, with the measured time and what was measured on the test PC (Radeon RX 9070 XT, 3440x1440, 60 FPS,
+    the same scene):
+      baseline (resolution = display, native AMD FSR) 3.9 ms/frame; no anti-aliasing 2.4; SMAA 2.8; 4K internal
+      resolution 7.6 ms and 0.5 GB of targets; 8K 13.7 ms and 2 GB (AMD FSR cannot be created at 10320x4320: there is no
+      FSR at that resolution); supersampling x4 13 ms and 0.9 GB; FSR performance 3.2 ms; anisotropic 16x +0.4;
+      sharpness +0.2; texture detail, nothing measurable; frame generation +25% GPU with 120 game frames (2.1 ms per
+      generated frame, Windows counters) and 228 MB, CPU +60%; FPS limit 60 / 120 / 240: CPU 3 / 5.5 / 9.5%, GPU 22 /
+      43 / 78%; HD textures (43) 47 MB; the texture dump, up to 4 MB/s of disk.
+    What was not measured says so ("estimated"): FSR 3.1 / 2.3 and FG 3.1 (half of the version 4 ones), HDR (little).
+  - "Settings" (at the end): Save settings (now, with the time; they are also saved on their own when the menu closes),
+    Undo changes (back to how they were when the menu opened), Reset video (the factory values; asks to be pressed
+    again) and Restart the game (another copy with the same command line, which waits for this one to finish, and this
+    one closes: it applies the language; asks to be pressed again). The language says when a change is waiting for a
+    restart.
+  Audio: Reset audio. Quit: Restart the game.
+  Also: the description on the right no longer lingers from another tab (the Controls one showed in Video, Audio and
+  Quit until a row was selected).
+  Tested (hidden test runs): Undo puts anisotropic, sharpness and FPS back as they were; Reset sets the factory values;
+  Restart opens another copy that starts when this one closes. Testing: LARECOMP_MENU_PRESS=<frame>:<label> presses that
+  menu row; LARECOMP_SET accepts aniso, sharpness, tex_detail, fps_limit, hdr, tex_dump and tex_pack.
+
+0.43.0-beta (2026-11-16) — the menus in widescreen no longer "shrink" the game
+  When a menu (X items, Y specials, + menu) was opened in 21:9, the scene shrank to the center at 16:9 width, squeezed,
+  with gray at the sides; when it closed, the scene filled the screen again. Measured: the whole 21:9 scene squeezed to
+  1920 wide (scale 0.75, correlation 0.988), 320-pixel bars on each side of 2560x1080.
+  Why: the menu (Menu.StartScreenCapture) copies the whole screen (2560x1080) and puts it as the background in a
+  RawImage, as is or blurred; that RawImage measures 1920x1080 on the canvas, the console's 16:9.
+  Fix (tools/game_overrides.c): RawImage.set_texture replaced, same as the original, and if the new texture has the game
+  screen's aspect ratio and the RawImage is a full-height 16:9 box, it takes the texture's aspect ratio (wider in 21:9,
+  taller in 16:10); if it later receives another texture, it goes back to its size.
+  Measured (hidden test runs): in 21:9 the menu background is the scene from before at scale 1.0 (correlation
+  0.983-0.99; the squeezed one gives 0.34) and the sides, gray before, match it (0.999); no bars in 21:9, 16:9
+  (unchanged) or 16:10 (the image grows in height); going from 21:9 to 16:9 and back between menus, it goes back to its
+  size and widens again. The minigames copy the screen the same way (their ScreenCapture), untested.
+  Seen while testing: the test screenshots (LARECOMP_HOST_INPUT "shot") stall for ~360 ms each; many in a row bring the
+  counter down to ~35 FPS. It is not the game.
+
+0.42.0-beta (2026-11-16) — 3440x1440 without the 1-2 row bars
+  The widened game screen was rounded to multiples of 8: on a 3440x1440 monitor it came out as 2584x1080, a bit wider
+  than the monitor, and the image left one black row at the top and two at the bottom. Now to multiples of 4: 2580x1080,
+  its exact aspect ratio (runtime/hle/unity_screen.c screen_for). Measured: 3440x1440 filled (rows 0-1439), both at
+  startup and when changed live, at scale 1.0 against starting in 21:9.
+  (Seen while measuring, not fixed yet: the last column on the right and the first row at the top come out darker, at
+  any resolution and since before this version.)
+
+0.41.0-beta (2026-11-16) — live 21:9 (without reopening the game) and a controls guide
+  Live widescreen: when the display mode or resolution changes (or the window is stretched) to another aspect ratio, the
+  game switches to it in a moment, with a truly wide view, no bars and no stretching. Before (0.40.0-beta) it kept the
+  bars until it was reopened: you saw the 16:9 image in the center even after going fullscreen.
+  - runtime/hle/unity_screen.c rt_unity_screen_follow (main thread): the window changed its aspect ratio and stays still
+    for 300 ms -> AM message 31 (performance mode change); Unity asks for its resolution again (main 0x70006b7204,
+    already replaced) and applies it with its SetResolution (0x700062f1d0).
+  - tools/game_overrides.c: SetResolution replaced, same as the original minus two things: the clamp to 1920x1080 (the
+    Switch's maximum: the scene was still 1920 wide and came out stretched by 33%) and the "custom resolution" flag
+    (+0xc9: with it, the following messages were ignored).
+  - Unity's window textures and its backbuffer depth (created at 1920x1080; t->screen) match the size of the game screen
+    live too: they are recreated on their next use (runtime/nvn/vulkan/textures.c screen_follow).
+  - With the window minimized (or under 64 pixels) the aspect ratio does not change (device.c renderer_display_aspect).
+  Measured (hidden test runs, a still Mushroom Way scene against a direct start at each size): from 16:9 to 21:9 live
+  the window is filled and the proportions are those of starting in 21:9 (scale 1.0 on both axes; the sides that appear
+  match those of starting in 21:9 with correlation 0.997-0.998: real scene); 21:9 -> 16:9 -> 21:9 -> 3440x1440 -> 16:10
+  in a row, all filled and at scale 1.0; with the menu open too (it applies at once); with AMD FSR and with frame
+  generation (they are recreated at the new size and carry on).
+  Controls (Menu > Controls):
+  - "Keys and buttons": what each one does in Super Mario RPG with the current key and controller button (they change
+    with the bindings): move, talk / confirm (in battle, attack), jump / cancel, items, specials, menu, gauge attack,
+    walk (hold L, R, ZL or ZR), and the port's own (Esc / F1 menu, F11 / Alt+Enter fullscreen). A or a click on a row:
+    its entry in "Configure controls". What each button does comes from the controls section of Super Mario Wiki and
+    from the game's own interface; what neither of them says (D-pad, right stick) is left out.
+  - "Configure controls", in Spanish (it was in English), with what each button does next to its name and the key and
+    button names in Spanish (Intro, Retroceso, Flecha izq., Botón +...).
+  Testing: tools/run_test.sh can be launched with another copy of the game open if it uses an isolated data folder
+  (LARECOMP_DATA_ROOT) and closes only its own (the new PID).
+
+0.40.0-beta (2026-11-16) — display mode (windowed, borderless, fullscreen) and display resolution
+  Menu > Video > Display:
+  - "Display mode": Windowed (with a frame), Borderless (fills the monitor at its resolution, without being fullscreen:
+    instant Alt+Tab) or Fullscreen (exclusive). F11 / Alt+Enter: between the window and the last of the other two.
+    window_mode setting (window / borderless / fullscreen); the old fullscreen = 1 is read as borderless.
+  - "Display resolution" (the final one, not the internal one): windowed, the 16:9, 16:10, 21:9 and 32:9 sizes that fit
+    on the monitor (1280x720 ... 5120x2160) or "Free"; in fullscreen, the monitor's modes with its same aspect ratio (on
+    a 21:9 one: 3440x1440 and 2560x1080), so that the monitor does not stretch the image; borderless, the monitor's.
+    out_res setting.
+  - They apply at once (runtime/ui/menu.mm menu_apply_window_mode_now, on the main thread) and at startup, before the
+    game asks for its resolution (device.c ui_window_init).
+  21:9 (and 32:9, 16:10): the game takes the aspect ratio of the window or the monitor when it opens, with a truly wide
+  view (checked by measuring: the center of the 21:9 image matches the 16:9 one at scale 1, correlation 0.987: more
+  scene at the sides, nothing stretched). If it changes during play, the image keeps its own aspect ratio with bars (no
+  stretching) and the new one applies when the game is reopened; the menu says so, with the size it will have.
+  Why not at once (tried and discarded): Unity asks for its resolution again with the performance mode change message,
+  but its SetResolution (main 0x700062f1d0) clamps it to 1920x1080, the Switch's maximum, and marks any other as
+  "custom" (from then on it ignores the messages: "custom resolution was applied"). The scene was still 1920 wide and
+  came out stretched by 33%, which is what was seen in the first test of this version. At startup that path is not used.
+  Tested on screen (3440x1440 at 240 Hz): borderless (3440x1440 at 0,0, no frame), exclusive fullscreen and a 1600x900
+  window with the 21:9 game inside with bars: the same measured proportions (scale 1.0) in all three; and hidden, window
+  from 16:9 to 21:9 live: the game stays 16:9 with bars, without stretching.
+  Testing: LARECOMP_SET accepts window_mode, out_w, out_h and wide; LARECOMP_WINDOW_MODES=1 lets the modes be applied in
+  a test window; [window] in the log (each mode applied and the monitor's modes).
+
+0.39.0-beta (2026-11-16) — videos no longer shrink when raising the resolution or the supersampling
+  With the internal resolution above 1x (2x-8x) or with supersampling, the animated title background (a video) and the
+  movies were shrunk into the top left corner (at 4x, to a quarter), with the UI at full size. Cause: the texture the
+  video is decoded into is "scalable" (16:9 with the render-target flag), so it is allocated at the render scale (at 4x,
+  7680x4320), but each frame was drawn at its own size (1920x1080) in the corner, and the texture still claimed that its
+  contents filled it entirely. Below 1x it went unnoticed (the texture was smaller than the video, which was scaled down
+  to fill it). Now the video always fills the scaled texture, scaled up or down, and the texture says so (exec.c
+  vk_convert_nv12, NV12, the path the movies take; textures.c upload_pending, RGBA: through a temporary image and a
+  blit, like the copy of version 27).
+  Tested (1276x720 window, the one in the report): title at "match display", 4x, 4x + supersampling x4, 2x and
+  supersampling x2, changed live: filled in all of them; in Mushroom Way and in battle, the same.
+  Testing: LARECOMP_SET="frame:setting=value,..." changes res_mode, supersample, antialias, fsr_mode, framegen or
+  fg_version live (like the menu); the named window screenshots of LARECOMP_HOST_INPUT ("frame:shot:name",
+  build/name.png) now work on Vulkan too; with LARECOMP_DEBUG_FRAME, each pass logs its scale and that of its targets
+  ([pass]).
+
+0.38.0-beta (2026-11-16) — AMD FSR frame generation (neural-network FG 4, FG 3.1)
+  Menu > Video > Image, with Anti-aliasing "AMD FSR": "Frame generation" On/Off and "Frame generation version"
+  (Automatic: FG 4.0.2 on the Radeon RX 9000, FG 3.1.6 on the rest). Between every two game frames a generated one is
+  presented: on screen, twice the frames per second. It also needs amd_fidelityfx_framegeneration_vk.dll next to the
+  executable (the AMD FSR SDK 2.4, like the FSR ones). framegen and fg_version settings.
+  How it works (runtime/nvn/vulkan/vk_fg.cpp, new): the window's swapchain is AMD's, with two more queues of the
+  graphics family (present and acquire; device.c asks for up to 3). Each frame with FSR is configured and prepared
+  (FSR's depth and motion vectors, camera) right after FSR, on the recorder thread and in order; presenting generates.
+  Frames without the motion pass (loading screens, game menus with no scene) go without generation. It pauses while the
+  runtime menu is open. Turning it off, turning it on, or changing the version or the size rebuilds AMD's swapchain in
+  place or swaps it for the normal one.
+  The camera (FG 4 requires it): exec.c takes it from URP's view-projection in the camera motion vectors draw (in vs c4:
+  this frame's and the previous one's; they are told apart by history): position, axes, field of view (10° in Mushroom
+  Way) and planes (0.3-0.6 to 1000). FSR now uses those planes and that field of view too.
+  Finding: frame generation wants the vectors' Y the other way around from FSR. With FSR's scale, FG 4 just blended the
+  two frames when the camera moved vertically (and FG 3.1 fell back on its optical flow); measured in captures of what
+  is presented (LARECOMP_FG_PSHOT): with Y inverted, the generated frame lands halfway (2.2 of 4.5 px vertically, 5.2 of
+  10.5 horizontally). FSR, with Y inverted, gets worse (more error against the native render): it only changes for frame
+  generation.
+  The FPS counter also shows what you see ("120 fps (240 with generation)") and, without HDR, it does not warp in the
+  generated frames: the window is copied before the runtime menu is drawn and AMD uses the copy so as not to interpolate
+  the counter (HUDLessColor). Not with HDR (AMD dropped it from the generated frames): it is interpolated with the
+  scene.
+  Fixes along the way: AMD's function for its swapchain's images does not correct the count (views of null images, and
+  the driver crashed at startup): the count is now queried first. HDR prefers A2B10G10R10 (frame generation does not
+  take A2R10G10B10). When the FSR context is recreated, only the game's queue is waited on (record.c now has a queue
+  lock).
+  Tested (isolated folder, hidden window): walking in Mushroom Way, 3440x1440 with HDR at 120 FPS (3,600 of 3,600 frames
+  with a generated one, ~234 presented per second), FSR x2 + generation, battle, menu open (pause), turning
+  off/on/changing version live. Without frame generation, everything as before.
+
+0.37.0-beta (2026-11-16) — "Shader compilation: Balanced" (default): almost nothing shows up late
+  On entering an area for the first time, draws with new shaders were skipped while those compiled (in the background):
+  200 to 2,466 draws in 1-2 seconds, objects that showed up late. The new mode, the default one, waits for each new
+  pipeline for at most 10 ms in total per frame (exec.c draw_waits_for_build / build_wait); once that time is used up,
+  whatever is missing is skipped as before. With the driver's pipeline cache, almost everything makes it in time.
+  Menu > Video > Image > "Shader compilation": Balanced, In the background or Wait (no limit).
+  shader_wait setting: 0 in the background, 1 wait, 2 balanced.
+  Tested: two unvisited interiors (Moleville, Seaside Town): 23 and 29 draws skipped on entering (before, hundreds),
+  with no hitches beyond the one from loading the scene.
+
+0.36.0-beta (2026-11-16) — AI HD textures with a double click
+  hd-textures.cmd (next to play.cmd) + tools/hd_textures.py: with "Dump textures" on in the menu, you play for a while;
+  then the .cmd upscales the dumped color textures with AI (sRGB; not the normal maps or the masks, nor the flat or
+  small ones) and leaves them in the textures folder, which the game uses with "HD textures" (version 31). AI:
+  Real-ESRGAN ncnn Vulkan (BSD-3, portable: realesrgan folder next to the .cmd, outside the repository, or the
+  REALESRGAN variable) with the realesr-animevideov3 model, the one that best suits the game's style (clean edges, no
+  made-up detail): x4 reduced to x2 by default (--escala 2, 3 or 4: more video memory). Alpha is upscaled separately.
+  Tested: the castle's 111 dumped textures -> 43 HD ones in 8 s on an RX 9070 XT; in the game, 32 replaced in the
+  hallway without errors; at 2560x1440, the carpet's embroidery, the stone and Mario's clothes, better defined.
+
+0.35.0-beta (2026-11-16) — FSR with upscaling: Quality, Balanced, Performance and Ultra performance
+  Menu > Video > Image > "FSR quality": native (anti-aliasing only, as in version 33) or the scene drawn with 1.5, 1.7,
+  2 or 3 times fewer pixels in width and height and upscaled by FSR to the internal resolution. It uses the renderer's
+  dynamic resolution machinery: the screen's images are allocated at full size and, when the frame starts, the render
+  scale drops (the scene takes up a corner; the shaders already read that partial content through their scale table);
+  after FSR, which writes the upscaled image to the scene color, it goes back to full for post-processing and the UI
+  (exec.c fsr_pass_begin / fsr_dispatch; vk_fsr.cpp with render and output sizes and
+  FFX_UPSCALE_ENABLE_DYNAMIC_RESOLUTION). The subpixel sequence grows with the ratio (8 x ratio^2 phases).
+  With the "Dynamic" internal resolution, native only.
+  Tested at 1920x1080 with FSR 4 in Performance (960x540 -> 1920x1080): the scene sharp and the UI at full resolution,
+  in the hallway and in the first battle (its menu belongs to the overlay camera, after FSR).
+
+0.34.0-beta (2026-11-16) — choosing FSR 4, FSR 3.1 or FSR 2.3
+  Menu > Video > Image > "FSR version" (with Anti-aliasing at "AMD FSR"): automatic (the one the SDK picks: the best the
+  GPU runs), FSR 4 (4.1.2), FSR 3.1 (3.1.6) or FSR 2.3 (2.3.4). AMD's SDK brings all three; the chosen one is requested
+  when the context is created (ffxOverrideVersion) and a change recreates it at once (vulkan/vk_fsr.cpp). fsr_version
+  setting in larecomp.ini. Tested: all three on an RX 9070 XT, with the scene still.
+
+0.33.0-beta (2026-11-16) — AMD FSR 4 / 3.1 as anti-aliasing, with the game's own motion vectors
+  Menu > Video > Image > Anti-aliasing > "AMD FSR": AMD's temporal anti-aliasing (FSR 4.1.2, a neural network, on the
+  Radeon RX 9000; FSR 3.1.6 on the rest) at the internal resolution, on the scene before URP's post-processing.
+  1. Motion vectors: URP 12 ships its MotionVectorRenderPass pass (camera and each object with its matrices from the
+     previous frame, to _MotionVectorTexture RG16F), but the game never asks for it. tools/game_overrides.c replaces
+     UniversalRenderer.GetRenderPassInputs (main 0x7001838ee0; same as URP's open source code) and asks for it, with the
+     depth texture it needs, when FSR is selected (runtime/hle/unity_screen.c rt_force_motion_vectors).
+  2. runtime/nvn/vulkan/exec.c (fsr_pass_begin): every frame it locates the scene's color and depth and the motion
+     texture; the passes with the scene's depth are drawn offset by the frame's subpixel (Halton 2,3 sequence, in the
+     viewport: without touching shaders); FSR runs, after the motion pass, at the start of the first one that does not
+     draw into the scene (the final copy), or of the battles' overlay camera one (its UI does not go through FSR). The
+     result goes back to the scene: post-processing and the UI stay the same.
+  3. runtime/nvn/vulkan/vk_fsr.cpp: the AMD FSR SDK 2.4 (MIT headers in third_party/amd-fsr; its signed DLLs, next to
+     the executable, are not in the repository: third_party/amd-fsr/README.txt). It records on the recorder thread with
+     a new callback packet (record.c rec_CmdCallback). device.c enables what FSR 4 asks for if the DLLs are there:
+     cooperative matrices, float8, float16, integer dot product and, by name, the extensions already promoted to core.
+  4. (diagnostics) LARECOMP_LOG_CANVAS=1: the name, the reference and the scale of each canvas the game scales.
+  Tested: FSR 4.1.2 on an RX 9070 XT; with the camera still, edges without stair-steps and the textures just as sharp;
+  walking and in the first battle, no trails (Mario attacking), with a sharp UI.
+
+0.32.0-beta (2026-11-16) — TLD4 (textureGather) in the translator
+  runtime/nvn/maxwell/translate.c emit_tld4: TLD4 and TLD4.B, the read of the four neighboring texels of one component
+  (or their depth comparison), with AOFFI offsets, in 2D, 2D array and cube. Operands as in Ryujinx.
+  With that, the game's 4 shaders that use them are translated: URP's Bokeh depth of field and its EASU upscaling. Of
+  the 82,032 shaders 22 remain untranslated, none that the game uses: the VR, wireframe and LookDev ones (from the
+  editor), CopyDepth with MSAA (the game does not use it) and 7 of main's internal ones that do not show up when
+  playing.
+  Tested: a sweep of those shaders (they compile to SPIR-V) and the game with no skipped draws.
+
+0.31.0-beta (2026-11-16) — HD textures: dump and replacement
+  Menu > Video > Image:
+  1. "Dump textures": each new texture the game loads is saved in <data>/textures-dump (next to the saves) as
+     <hash>_<width>x<height>_<format>.png. The hash (16 hexadecimal digits) is of the level 0 data as the game provides
+     it (the ASTC 6x6 blocks of almost all of them, or the RGBA8 texels) with its size and format: it does not depend on
+     the memory address or on whether the data comes from the CPU or through a GPU copy.
+  2. "HD textures" (on; without the folder it does nothing): a PNG in <data>/textures (or its subfolders) whose name
+     starts with the hash replaces the texture: with the same proportions and the same size or larger (upscaled x2 or x4
+     with an AI, for example). Mipmaps are generated. The game still sees the original size: size queries and per-texel
+     reads go through the texture's scale, like those of textures at another resolution. If the game puts other data in
+     that texture, its own comes back.
+  runtime/nvn/vulkan/texpack.c (hash, folder index, dump), textures.c (vk_texpack_replace / vk_texpack_unreplace,
+  upload_texture), exec.c (copy_buffer_to_texture). No new libraries: SDL3 reads and writes PNG.
+  Tested: 111 textures dumped on entering the game (33 MB); the armor of the castle's statues, tinted red and at twice
+  the size, shows in the game.
+
+0.30.0-beta (2026-11-16) — 130 more shaders translate (shader sweep)
+  The 0.29.0-beta sweep (tools/shader_sweep.c, 82,032 shaders) left 156 untranslated; 130 were bindless textures whose
+  handle the tracing could not follow (runtime/nvn/maxwell/translate.c):
+  1. HSETP2, DSETP, VSETP, KIL, BPT, CCTL, RED, SUST, ST, R2B and SETCRSPTR do not write a register in their bits 0-7
+     (HSETP2's destination is a predicate): they were taken for writes of the handle's register (74 shaders).
+  2. A predicated definition (@P0 LOP.OR r32, r42, c[2][..]) is valid when the use is only reached through the "P0 true"
+     side of a branch that follows it (@!P0 BRA out of it), with no writes of P0 and no exits in between (51 shaders):
+     that is how the NVN compiler guards the textures it only reads if the material uses them.
+  3. A write with the predicate opposite to the use's (@!P0 MOV r24 ... @P0 TEX.B r24) is not its definition.
+  4. A handle saved in local memory and reloaded (STL / LDL) is followed to what was saved.
+  Full sweep afterwards: 82,006 of 82,032 (81,876 before), none worse. 26 remain with instructions the translator does
+  not have (VMAD in 6 geometry ones, TXQ.B in 6 and SUST in 1 of main's, multisample TLD in 6, TLD4.B in 4, VMNMX in 3).
+  tools/shader_pick.py pulls out the ones that fail so they can be rerun on their own.
+
+0.29.0-beta (2026-11-16) — the whole UI in widescreen; shader sweep
+  1. Widescreen: the UI is no longer cut off. Unity's CanvasScaler computed each canvas's scale from the screen width
+     (the game's setting, designed for 16:9): in 21:9 the UI grew by 33% and lost the title logo, the "Load" header and
+     the "Back" button at the top and bottom. tools/game_overrides.c replaces CanvasScaler.HandleScaleWithScreenSize
+     (main 0x7001fdb520; the names, from an IL2CPP dump) with one identical to uGUI's open source code that computes the
+     scale from the 16:9 that fits inside the screen (runtime/hle/unity_screen.c rt_unity_ui_scale_screen): each element
+     keeps its 16:9 size and what is anchored to the canvas edges goes to the edges. In 16:9 nothing changes. Remaining:
+     the game puts its UI in a fixed 1920x1080 panel, so the title background and the dimming of the dialogs do not
+     reach the sides (bars).
+  2. Unity compute shaders: they carry their own 0x100-byte header (magic 0x12345679) before the code; the translator
+     was reading it as instructions (runtime/nvn/maxwell/translate.c). The game's 55 now translate.
+  3. tools/shader_sweep.c: translates and compiles to SPIR-V all the game's shaders without playing (the ~82,000 pulled
+     out by nxnative's tool dm/gfx/tools/shader_split.py with DM_GAME=0100BC0018138000) and groups the failures.
+  Tested: title, "Load" menu and dialog at 2560x1080 and at 1920x1080, in an isolated copy.
+
+0.28.0-beta (2026-11-16) — runtime menu fully in Spanish
+  1. Controls (runtime/ui/controls_ui.mm): in Spanish and only with what applies to SMRPG: configure controls,
+     controllers in the background, rumble and intensity, confirm in menus. The Link's Awakening parts are gone (the
+     D-pad that moves Link, 360-degree movement, the controller light with his health, the button icons that change its
+     textures).
+  2. runtime/ui/option_rows.mm: uppercasing the labels now also changes accented letters and the ñ (before,
+     "VIBRACIóN"); the switches say "Sí" / "No"; the menu title is "Ajustes".
+  Tested with the menu open in a test (LARECOMP_MENU_AT / LARECOMP_MENU_TAB / LARECOMP_WINDOW_SHOT).
+
+0.27.0-beta (2026-11-16) — save thumbnails show up; "Shader compilation"
+  1. runtime/nvn/vulkan/exec.c: a draw whose program or pipeline is still compiling is skipped (no hitches), but on a
+     small target (<= 512 x 512) it waits: the save thumbnail (266x150) is a one-time draw and came out empty (the
+     save's JPEG, uniform, 1,307 bytes).
+  2. copy_buffer_to_texture: a scaled texture (16:9 with the render-target flag, at the render scale) received the
+     game's data copied 1:1 into an image of another size: the rows wrapped around. Now the data goes to a temporary
+     image of the game's size and from there with a blit (the 1920x1080 screenshot that the game shrinks for the
+     thumbnail).
+  3. Menu > Video > "Shader compilation": in the background (default) or wait (nothing is ever missing; some hitch the
+     first time each thing is seen).
+  4. LARECOMP_LOG_COPIES=1: each texture read back to the game's memory goes to the log and, the RGBA8 ones, to
+     build/copy_*.png.
+  Tested: the autosave shows up in "Load" with its thumbnail (the castle hallway).
+
+0.26.0-beta (2026-11-16) — texture detail
+  Menu > Video > Image > "Texture detail": normal, high or maximum = an LOD bias of -0.5 / -1 on the samplers with
+  mipmaps (not on the shadow ones): at a distance a finer level of each texture is used, sharper (it goes well with
+  supersampling, which removes the shimmering). The sampler cache remembers the anisotropy and the detail each one was
+  made with (textures.c vk_sampler). Tested in the castle hallway with the maximum.
+
+0.25.0-beta (2026-11-16) — game language (text in Spanish, among others)
+  1. Menu > Video > Game > "Game language": automatic or one of the game's (Japanese, English, Spanish, French, German,
+     Italian, Dutch, Russian, Korean, Simplified / Traditional Chinese). It applies when the game is reopened (the game
+     reads it at startup: am GetDesiredLanguage).
+  2. runtime/settings.c: "Automatic" on Windows uses the Windows language (GetUserDefaultLocaleName: es-ES / es-MX ->
+     Spanish); before, it was always English outside Linux. The language code is now also cut at the hyphen.
+  Tested with "es": the load screen reads "Cargar", "Castillo de Bowser", "Nueva partida", "Archivo 1", "Atrás",
+  PV / NIV and the date in day-month format.
+
+0.24.0-beta (2026-11-16) — Super Mario RPG Recomp: its own name and icon, true widescreen, supersampling, sharpness,
+anisotropic filtering, more than 60 FPS and HDR10
+  1. Name and icon: the executable is build/smrpg-recomp.exe (Makefile; the game DLL imports from it), the window and
+     the messages say "Super Mario RPG Recomp" (runtime/app_name.h, APP_NAME), a VERSIONINFO resource with the version
+     from this file (Task Manager, Explorer) and a new icon (golden star on indigo: tools/make_icon.py generates
+     docs/icon/icon.ico, icon_512.png and icon.svg with no dependencies).
+  2. True widescreen (ultrawide 21:9 / 32:9 and 16:10): Unity decides its resolution in main 0x70006b7204; lasgame.dll
+     replaces that function without regenerating the code (tools/game_overrides.c is linked first with
+     --allow-multiple-definition) and runtime/hle/unity_screen.c widens the game screen to the aspect ratio of the
+     monitor (in fullscreen) or of the window. Unity then creates its scene, its camera and its UI at that size; the
+     window textures and the backbuffer depth, which it allocates at 1920x1080, are created at the new size (objects.c;
+     only the GPU draws them). The renderer scales from the game screen (g_guest_w / g_guest_h: output_scale.c,
+     tex_scalable). Tested at 2560x1080: the castle hallway takes up the whole width and the HUD is anchored to the
+     corner. The title camera keeps its horizontal framing (it crops at the top and bottom). Link's Awakening's own
+     widening is now for that game only (widescreen_allowed). "Widescreen" setting (applies when the game is reopened).
+  3. Named internal resolution: 720p, 900p, 1080p, 1440p, 1800p, 2160p (4K), 2880p (5K), 4320p (8K), "match display",
+     dynamic and 50 / 67 / 75 / 85%.
+  4. Supersampling x2 / x4 / x8 / x16: sqrt(N) times more rows and columns, reduced to the window with a box filter in
+     linear space (downsample.frag; the present's bilinear only averaged 2x2). Can be combined with SMAA.
+  5. Sharpness 0-10 (AMD RCAS at the final resolution, also without upscaling) and forced anisotropic filtering (the
+     game's own, 2x-16x; 16x by default) on the samplers with linear mipmaps.
+  6. FPS limit (30 / 60 / 90 / 120 / 144 / 165 / 240): the vsync Unity waits for (hle/vi.c) runs at that rate. Tested at
+     120: a steady 120 FPS with no drift in the movement (in 2 real seconds Mario covers the same distance as at 60).
+  7. HDR10: with "HDR" and a display that offers it (Windows: "Use HDR"), the swapchain is A2B10G10R10 + ST2084
+     (VK_EXT_swapchain_colorspace); the window is drawn into an intermediate SDR image and hdr10.frag converts it to PQ
+     in Rec.2020 with adjustable "paper white", "peak brightness" and "highlight boost". Tested: "HDR10 (PQ) active".
+  8. Menu for SMRPG in Spanish: Controls, Video, Audio and Quit tabs (without the Link's Awakening ones: save editor,
+     randomizer, cheats, cosmetics...), Audio with just the volume and Quit only to the desktop.
+  9. tools/run_test.sh: with LARECOMP_DATA_ROOT (isolated data folder: its own save/ and larecomp.ini) tests can run
+     alongside an open game; it closes its own process tree (plat_exec relaunches the program and waits).
+  No DLSS: it needs an NVIDIA GPU. FSR 2/3/4 with frame generation, pending (it asks for motion vectors that the game
+  does not draw).
+
+0.23.0-beta (2026-11-16) — channel order of the packed 16-bit textures (RGBA4, RGB565, RGB5A1, RGB5)
+  runtime/nvn/vulkan/textures.c: NVN's packed formats have R from bit 0; Vulkan names its own from the high bit. RGBA4
+  was mapped to R4G4B4A4 and read with its four channels reversed: nxnative saw it in SMRPG (the Mushroom Way
+  shadowmask, 0x0f00 texels, left the ground and the foliage of the battles almost black). Now RGBA4 = A4B4G4R4 (core in
+  Vulkan 1.3) and RGB565 = B5G6R5, exact if the device can sample them (if not, the previous format with the channels
+  reordered in the view); RGB5A1 and RGB5 = A1R5G5B5 with red and blue swapped in the view (before, R5G5B5A1 and R5G6B5:
+  not even the bit widths matched). VkFmt.chan: the reordering applied by the sampling view, together with NVN's swizzle
+  and alpha_one.
+  Not checked in the game: Bowser's Keep does not use these formats (Mushroom Way does, according to nxnative).
+
+0.22.0-beta (2026-11-16) — save times are local; a launcher for playing and tests that do not close the game
+  1. runtime/services/time.c: ToCalendarTime with the rule the game loads (command 100) gives the PC's local time, like
+     ToCalendarTimeWithMyRule: the device's rule is the only one there is. Unity (DateTime.Now) goes that way and the
+     saves' dates came out in UTC instead of local time. ToPosixTimeWithMyRule (202) too.
+     Checked: a new autosave comes out with its local time on the "Load" screen.
+  2. play.cmd (new): starts the game with sound, controller and keyboard (the controls are in the file itself).
+  3. tools/run_test.sh (new): a test run that does not launch if the game is already open and at the end closes only its
+     own process (by its Windows PID, taken from tasklist: $! is env's). Before, tests ended with taskkill by name,
+     which would also have closed the game of whoever was playing.
+  Tested with scripted input: loading the autosave leaves Mario in the castle hallway; he moves in all four directions,
+  the camera follows him, the carpet scene shows and a Terrapin comes to life and patrols.
+
+0.21.0-beta (2026-11-16) — complete nvnTextureWriteTexels(Strided); the game can be played and autosaves
+  1. runtime/nvn/objects.c, tegra.c / .h: WriteTexels writes any region: the view's mip level and first layer, z as a
+     layer (array, cube) or as a slice (3D), linear textures (flag 0x10, rows at their stride) and, in
+     WriteTexelsStrided (empty before), the row and image strides. tegra_swizzle_region writes a block-linear subregion.
+     Before, only a whole level 0 was written: the 6 faces of Unity's default cubemap all landed on face 0 and
+     everything else was "partial WriteTexels not implemented" (171 times in one run).
+     LARECOMP_LOG_WRITETEXELS=1 logs each write.
+  2. Tested with the new-game route and A every 150 frames: the cutscene ends, Mario enters Bowser's Keep with the
+     gameplay HUD (X Items, Y Special, + Menu, HP and FP) and the game autosaves ("Saving...":
+     save/save_0/SMR_Save_Ver0011000, 193 KB, and its image).
+
+0.20.0-alfa (2026-11-16) — the characters show up (Mario, Bowser, Peach) and an intermittent crash when a movie starts
+  1. runtime/nvn/maxwell/translate.c: the tracing of a TEX.B handle accepts several definitions reaching it through the
+     control flow graph if tracing them gives the same c[2] words. The characters' shader (751804f880) does
+     LOP.OR r24 = r24 | c[2][sampler] at 0x28 and repeats it at 0x738 on one of its two paths: two definitions reached
+     its TEX.B at 0x1c28 and it gave up ("handle r26 not traced"), and the characters' bodies were not drawn (only their
+     black outline). A word repeated in an OR is accepted (it is idempotent); in an IADD it is not. Now all the shaders
+     translate (0 draws skipped).
+  2. runtime/nvn/objects.c, nvn.h, vulkan/exec.c: a command buffer recorded before the game finalized a texture and
+     submitted afterwards still names it (on the console it is valid: the command writes the pool's memory). CRI does it
+     with its video textures (1920x1088): the copy read an NvnTexture already freed and reused (backend = 1, host crash
+     in tex_backend in one out of every ~9 runs). The finalized object is marked (dead) in a graveyard of 4,096 and the
+     copies / ClearTexture that reach it are skipped with a log line.
+  3. The "FS translate failed" message carries the shader's address; with LARECOMP_LOG_BINDLESS=1 the program that is
+     not traced is saved to build/bindless_<address>.bin, to be disassembled separately (with Ryujinx's instruction
+     table).
+
+0.19.0-alfa (2026-11-16) — CRIWARE movies (VP9) and Opus audio: the game reaches the title and a new game starts
+  1. runtime/hle/movie.c: CRIWARE Sofdec demuxes its USMs and hands the VP9 to movie::Decoder (mode 2, texture). The
+     functions it configures the decoder with were missing: CreateVp9DecoderConfigurationData (returns a bool: CRI only
+     calls Configure if it is true, main 0x7001521950; with 0 it retried every frame and the movie never started) and
+     CreateH264DecoderConfigurationData (SPS / PPS in Annex B), with FFmpeg's parameters in the MediaData. Also
+     SetCoreMask, Buffer::Data, MediaData::FindInt64 / FindRect / operator=.
+  2. movie::Decoder like SDK 14's (its vtable read from SMRPG's subsdk0: the 19 entries match): GetOutputBufferSize
+     returns the size of one output and the mode (before, 0 and an int64 in an int); GetOutputBuffer(i, Buffer*,
+     MediaData*) (entry 17) works; in CPU mode the frame is copied into the client's buffer as tightly packed NV12; the
+     output format carries nv12-uv-stride, nv12-width / height, nv12-colorspace, stride, slice-height and crop (what the
+     SDK sets); "no input / output" with the SDK's codes (0x1011 / 0x100e). The logos, the opening movie, the title
+     screen and the new-game cutscene now show.
+  3. runtime/services/hwopus.c (new): the Switch's "hardware" Opus decoder with libopus (linked in the Makefile).
+     Manager: commands 0-9 (switchbrew: 7 = GetWorkBufferSizeForMultiStreamEx, parameters in an X buffer); decoder: 0-9
+     (8-byte big-endian Nintendo header + Opus packet -> interleaved 16-bit PCM). Before, it was a logging stub: the
+     work buffer size was 0 and CRI did not open any decoder. Now the movies' audio comes out (LARECOMP_AUDOUT_WAV dumps
+     it to a WAV; LARECOMP_HWOPUS_LOG=1 logs each command).
+  4. The fullscreen black quad that covered the scene (version 18's "dark final composition") was the background of
+     CRI's movie player waiting for frames: with VP9 it goes away. The post-processing was fine.
+  5. Renderer diagnostics (nvn/vulkan/exec.c):
+     - the pass dump (LARECOMP_DEBUG_FRAME) saved the target of the NEXT pass before anything was drawn to it (st.rt had
+       already changed when the pass was closed): it now saves that of the pass that ends;
+     - the draw log prints the index buffer, target 0's blending (NVN and Vulkan), each texture's image and the rscale
+       row; [ubind] and the cbufs with the API's index;
+     - LARECOMP_DBG_FS=<code>:<pc>:<register> shows a register of the fragment shader; with LARECOMP_DBG_MARK=1 green is
+       set to 1 (it ran) and blue carries the value / 1000; LARECOMP_DEBUG_FS_INPUTS=<code> dumps its input textures;
+       LARECOMP_SKIP_FSHASH=<hash> skips a draw.
+  Pending: the characters (Mario, Bowser) come out as black silhouettes: their shader is the one that does not translate
+  yet ("handle r26 not traced") and only the outline shows.
+
+0.18.0-alfa (2026-11-15) — Unity's shaders translate and the game draws (first image: Bowser's Keep)
+  All in runtime/nvn/maxwell/translate.c (LASRecomp's Maxwell to GLSL shader translator):
+  1. EXIT, KIL and BRA honor their condition code (bits 0-4). Unity's vertex shaders do VOTE.VTG and then
+     EXIT CC.FCSM_TR: exit only if the whole primitive is off-screen. The EXIT always ran, before gl_Position was
+     written, and nothing was rasterized: the black screen. As in Ryujinx, a condition that is not tracked is false in
+     EXIT / KIL and true in BRA.
+  2. VOTE.VTG (0101 0000 1110 0) as an instruction with no effect (same as yuzu and Ryujinx): it was in almost every
+     vertex shader and made them fail.
+  3. HSETP2 and HSET2 in their constant buffer and immediate forms (fields from Ryujinx's InstHsetp2C/I, InstHset2C/I).
+  4. Bindless textures (TEX.B): the handle is traced back to its c[2] words (combined or separate texture, and the
+     separate sampler) through MOV, LDC, LOP / LOP3 OR and IADD: first within the block and, if not, with an analysis of
+     the definitions that reach it through the control flow graph (SYNC / BRK / CONT paired with their SSY / PBK /
+     PCNT). A writer with the same predicate as the use counts (@!P1 MOV + @!P1 LOP.OR + @!P1 TEX.B), and so does the
+     sampler's conditional OR. One slot per texture-sampler pair (a shader can read the same texture with two).
+  5. TLD and TLD.B (texel fetch, full form) in GLSL, with Ryujinx's operands; the TEX.B mask is the real one
+     (1101111010) and its residency predicate is left true.
+  6. The translator's context fills in c->code and c->ninsts (empty before).
+  7. Diagnostics: LARECOMP_LOG_BINDLESS=1 (why a handle is not traced) and LARECOMP_DEBUG_FS_COLOR=1 (every fragment
+     shader writes magenta: is it rasterized?).
+  Result: all the shaders but one translate (82,000 draws every 2 s, 121 skipped). Pressing A to skip the opening movie
+  (not decoded yet), the game draws the Bowser's Keep scene with its lighting and the color table; the final composition
+  still comes out very dark.
+
+0.17.0-alfa (2026-11-15) — NVN separate textures and samplers in the runtime and the renderer
+  1. nvn/cmdbuf.c, nvn.h: nvnCommandBufferBindSeparateTexture(s) and BindSeparateSampler(s) keep their handles in their
+     own tables (in the Switch's driver, c[2] 0x168 + 8r and 0x568 + 8r, 128 slots each). Before, separate textures went
+     to the combined ones' table and separate samplers were ignored. Unity (SMRPG) uses separate textures and samplers
+     in all its shaders.
+  2. nvn/vulkan/exec.c: shader_tex_handle builds the handle of each of the shader's textures from the table it belongs
+     to (combined or separate) and, for bindless ones, joins the separate sampler's word to it (texture in bits 0-19,
+     sampler in 20-31), as the shader does on the console.
+  3. LARECOMP_DEBUG_DATA also prints the vertex shader's constant buffers (and reports the unbound ones).
+  Without version 18 (the translator) nothing visible changes.
+
+0.16.0-alfa (2026-11-15) — the sdk is no longer loaded inside main
+  1. rt.h, Makefile, gamebuild.c and tools: the sdk is loaded at 0x7005000000 (before, 0x7004000000, Link's Awakening's
+     base). SMRPG's main takes up 0x4dbc000 bytes with its .bss, up to 0x7004dbc000: the sdk landed inside it, and the
+     globals at the end of main's .bss (which must start at zero) held the sdk's code. One of them, a callback object at
+     main 0x410a238, had instruction bytes as its function pointer: "no function at 9100056c9b0ca609".
+  2. loader.c: if a module starts inside the previous one, a fatal error with both ranges.
+  3. STATUS.md up to date.
+  Requires regenerating the sdk ("make gen", or just the gen.py sdk line) and recompiling.
+  Result: the game runs at a steady 60 fps without crashing (more than 1,000 frames in 20 s), but it does not draw
+  anything yet: all the draw calls are skipped ("0 draws").
+
+0.15.0-alfa (2026-11-15) — Link's Awakening's per-frame hooks removed
+  1. The v1_0_0 address table SMRPG uses is Link's Awakening 1.0.0's (the first attempt reused the key): in SMRPG those
+     addresses do not point to anything of its own. g_game_las (false) keeps game_in_play, the level name, warp_frame
+     (except the screenshot and crash tests) and save_editor_frame (cheats, difficulty) from reading them. When the
+     first frame was presented, LA's cheats read a "game manager" that does not exist and the game crashed (read at
+     0xffffffffffffffff).
+  Result: it gets past the first frame and crashes jumping to a garbage address from a main global.
+
+0.14.0-alfa (2026-11-15) — the console's NVN device properties and null BindProgram
+  1. nvn/objects.c: nvnDeviceGetInteger answers with the values measured on a Tegra X1 (0x02-0x68, the ones nxnative
+     collects). LASRecomp's table ended at 0x40 and returned 0 for 0x5E (SEPARATE_TEXTURE_BINDINGS_PER_STAGE, 128 on the
+     console), which Unity stores as the maximum number of textures per shader: every shader with a texture failed to be
+     created, its parameters were left unprepared (size 0) and the SetShaders command misaligned the graphics thread's
+     command buffer (crash reading 0x30e56). An unknown property is reported once.
+  2. nvn/cmdbuf.c: nvnCommandBufferBindProgram(NULL, stages) unbinds stages (Unity does it with geometry, tessellation
+     and compute); before, the null program was read (crash at address 0).
+  3. LARECOMP_NVN_INFO_LOG=1 logs each device property the game asks for and from where.
+  Result: the game records, submits and presents its first frame; then it crashes in Link's Awakening code.
+
+0.13.0-alfa (2026-11-15) — the graphics thread no longer stays asleep (lost wakeup in the condition variables)
+  1. kernel.c: WaitProcessWideKeyAtomic flags the condition variable as "has waiters" BEFORE releasing the mutex, like
+     the Switch's kernel (mesosphere). The SDK's Signal/Broadcast does not call the kernel if that flag is 0: in the
+     opposite order, the main thread took the mutex right as it was released, added 1 to UnityGfxDeviceWorker's
+     semaphore, saw the flag at 0 and did not wake it. The graphics thread slept forever with 740 KB of unread commands,
+     and loading "level0" waited for an asynchronous upload (rom:/Data/level0.resS, already read) that never happened.
+  2. Diagnostics: LARECOMP_WATCH_ADDR works from startup; with LARECOMP_FNPROF=0:<n> each hang dump writes
+     build/fnprof_cuelgueN.txt (which game functions ran and how many times); LARECOMP_CRASH_HOLD=<s> keeps the process
+     alive for a few seconds after a crash so that its memory can be read with gdb.
+  Result: it gets past "level0"; the graphics thread creates buffers and programs, and the game crashes when setting the
+  shaders.
+
+0.12.0-alfa (2026-11-15) — the hang dump gives the registers of each sleeping thread
+  1. kernel.c: for each waiting thread, x19-x28 and sp (the registers preserved across calls usually hold the objects of
+     whoever is waiting: that is how the PreloadManager was found, x24 − 0x310).
+  2. STATUS.md: the current blocker (the integration of "level0") with what is already known and the recipe for reading
+     the hung game's memory with gdb.
+
+0.11.0-alfa (2026-11-15) — LDAR/STLR memory ordering as on AArch64
+  1. cpu.h: LDAR and STLR are translated as seq_cst (on x86, the store is an xchg with a full barrier). On AArch64 a
+     STLR and a later LDAR stay ordered (that is how C++ compiles its seq_cst atomics); with release/acquire, on x86 a
+     load could get ahead of the earlier store and Unity lost wakeups between threads: the main thread and
+     UnityGfxDeviceWorker ended up asleep at the same time.
+  2. STATUS.md up to date (where the boot stands, Unity's threads, known pitfalls).
+  Requires recompiling the whole game (runtime/cpu.h changes).
+  Result: the main thread moves on and creates Loading.PreloadManager; the game gets stuck integrating the first load
+  operation on the main thread (IntegrateMainThread never finishes): the next problem.
+
+0.10.0-alfa (2026-11-15) — hang dumps that say who each thread is and what it did
+  1. kernel.c: the hang dump (LARECOMP_HANG_DUMP) prints the name the game gave each thread (nn::os::SetThreadName:
+     "MainThread", "UnityGfxDeviceWorker", "Loading.PreloadManager"…) and its last 10 host calls.
+  2. Each thread records its last 32 host and system calls (except GetSystemTick); fatal errors dump them.
+  3. The kernel trace keeps the last 2,048 mutex and condvar events (up from 256).
+
+0.9.0-alfa (2026-11-15) — fatal errors say what the game called on the host
+  1. dispatch.c: each thread keeps its last 32 host calls (name, x0-x3 and from where) and a fatal error dumps them.
+     That is how version 8's crash was seen to come from the texture view.
+
+0.8.0-alfa (2026-11-15) — NVN textures: pool, view offset and 16-byte views
+  1. nvnTextureGetMemoryPool returns the pool the game gave the builder (before, 0). Unity uploads each texture with
+     GetMemoryPool + GetMemoryOffset + nvnMemoryPoolMap + memcpy + FlushMappedRange, and the runtime read a null pool.
+  2. nvnTextureGetViewOffset computes the offset of the view's first level and first layer (before, 0).
+  3. The texture view (NVNtextureView) takes 16 bytes, as in the newer SDKs' NVN (NVN 55). LASRecomp's record took 0x1C:
+     Unity keeps it in a 16-byte slot on the stack, and the setters wrote over the saved registers (the graphics thread
+     returned with x28 = 0 and crashed). nxnative found the same thing.
+  Result: Unity uploads textures without failing and the game keeps loading data for more than 60 s.
+
+0.7.0-alfa (2026-11-15) — the garbage collector can stop the other threads
+  1. kernel.c: svc SetThreadActivity (0x32) and GetThreadContext3 (0x33), with cooperative pausing. IL2CPP's GC stops
+     the threads with nn::os::SuspendThread and reads their registers with nn::os::GetThreadContext. The paused thread
+     stops at the next safe point: the entry of any game function (FN_ENTER already checked g_fnprof; its bit 2 signals
+     the pause, so it costs nothing without pauses), a system call or a host call. A host thread is never frozen at an
+     arbitrary point, where it could be holding a runtime or driver lock.
+  2. Makefile: the ~200 seeds (--seeds) that the first attempt had added to the sdk by hand to cover up the jump tables
+     are gone. With version 3 they got in the way: they split vfprintf again and its "switch" was left unresolved.
+  Result: the game creates some 25 threads, opens ssl and hid, and initializes NVN and Vulkan (device, window, vsync).
+
+0.6.0-alfa (2026-11-15) — symbol interposition like the Switch's rtld
+  1. loader.c: a symbol that the module defines is also looked up in all the modules in load order, and main's wins.
+     That way Unity's operator new/delete (globals in main) also replace the SDK's weak ones inside the sdk: before, the
+     sdk's std::string freed memory from Unity's allocator with the SDK's heap, and the heap stopped the game
+     (nnmem_nlib_debug_break). 38 symbols of the sdk move to main's definitions.
+  2. loader.c: global symbol hash table (a linear search would have been too slow for all the relocations).
+
+0.5.0-alfa (2026-11-15) — nn::ro without the ldr:ro service
+  1. hle/ro.c: the 8 nn::ro functions the game imports. Initialize no longer uses ldr:ro or the lists of the rtld (which
+     does not exist here: the pointers were left at 0 and address 0 was written to); LookupSymbol searches the loaded
+     modules (used by Unity's [DllImport("__Internal")], such as the CRIWARE plugin). The game ships no NROs.
+
+0.4.0-alfa (2026-11-15) — the game's RomFS mounts
+  1. fs.c: the RomFS is served from the romfs/ folder if it exists. Before, it required region_common/, a Link's
+     Awakening folder, and without it, it looked for a romfs.bin that does not exist ("cannot read the game data").
+  Result: 1,935 files served from extracted/romfs; the game starts reading them.
+
+0.3.0-alfa (2026-11-15) — the game's "switch" statements (compressed jump tables) and the function table
+  1. gen.py: the base of a compressed LLVM jump table (adr xB, L ; ldrb ; add xD, xB, xI, lsl #2 ; br xD) is no longer
+     taken as a function start. Before, it split the function right at the table, the table was left unresolved and the
+     "case"s went to the global dispatcher, which does not know them ("no function at"). It affected 2,305 tables in
+     main and 690 in the sdk: almost any "switch" in the game failed as soon as it did not hit the first case. Tables
+     resolved: main 115 → 1,926, sdk 49 → 560; functions split needlessly: main 174,584 → 154,801, sdk 46,566 → 40,015.
+  2. gen.py: the function table (address → function) ends up sorted. The "extra functions" that version 0 added went at
+     the end, out of order, and the runtime's binary search did not find other functions (one of the game's constructors
+     that did exist).
+  3. There may be other instructions between the add and the br of a table (8 constants in an xxHash32): up to 16
+     instructions without branches are looked at (2,305 of main's 2,307 ADRs are such tables).
+  Requires "make gen" and recompiling the whole game.
+  Result: the game's 288 constructors run and nnMain starts (time, fs, am).
+
+0.2.0-alfa (2026-11-15) — 128-bit atomics (exclusive pairs)
+  1. The recompiler translates LDXP/LDAXP/STXP/STLXP. They were the only 50 instructions of the game left untranslated
+     ("exclusive pair / CAS" traps): Unity/IL2CPP uses them for 128-bit atomics. They are emulated like the simple
+     exclusive monitor, with a 16-byte compare-and-swap (cmpxchg16b) against what the LDXP read.
+  2. STATUS.md: how to test, how to analyze the game's code with Ghidra and what is known about the boot.
+  Requires "make gen" and recompiling the whole game (tools/lifter.py and runtime/cpu.h change).
+  Result: there are no untranslated instructions left in main or in the sdk. The game's constructors get as far as a
+  "switch" whose jump table the generator did not resolve ("no function at 7000529144").
+
+0.1.0-alfa (2026-11-15) — the game's heap comes up (nn::os virtual memory)
+  1. A 48 GB alias region (it was 4 GB) inside a 64 GB window. The game's nninitStartup reserves ~3.1 GB of virtual
+     space aligned to 1 GB for its StandardAllocator, and nn::os's region manager takes the first GB: with 4 GB it did
+     not fit and the game aborted with error 2162-0001.
+  2. GetInfo as on the Switch: the "system resource" (16 MB) and the program ID are read from main.npdm; the used memory
+     is in bytes (heap + 64 MB + mapped physical memory); IsApplication, FreeThreadCount and the exception context page.
+     Version 0's "in pages" values and the Link's Awakening ID are removed.
+  3. MapPhysicalMemory and UnmapPhysicalMemory: only in the alias region and only the pages that change (bitmap).
+     Before, the already mapped pages were zeroed too, wiping TlsHeapCentral's object.
+  4. svcBreak closes the game again: reason 0 is "Panic" (an abort), not "continue". It now gives the reason and the
+     termination result the game left (am SetTerminateResult, which also goes to the log).
+  Result: nninitStartup sets up the heap, the sdk's 112 constructors run and the game's 288 begin; the first one that
+  uses a 128-bit atomic stops at an instruction the recompiler did not translate (LDXP).
+
+0.0.0-alfa (2026-11-15) — the state inherited from the first attempt
+  What the first attempt (a local AI agent) did on November 14 and 15 on top of LASRecomp 579fdad:
+  1. Version table and RomFS list for SMRPG 1.0.0 (main build ID e968832cade2ad7c...).
+  2. gen.py and Makefile: they translate main (174,586 functions) and sdk (46,566), with extra seeds for the
+     __nnmusl_init_dso jump table that was missing from the generated code.
+  3. loader.c: looks for nn::init::Start by prefix (in SDK 14.3.1 it has one more parameter).
+  4. main.c: the sdk and main constructors run in the late call of nn::init::Start, with the heap already set up.
+  5. ipc.c: the old sm protocol (message types 16 and 17) and logging of each IPC message.
+  6. kernel.c: GetInfo and svcBreak values changed by hand (version 1 corrects them).
+  7. dispatch.c: fatal errors list the game code addresses found on the stack.
+  Status: the game aborts inside nninitStartup (nn::mem::StandardAllocator::Initialize) and does not reach nnMain.

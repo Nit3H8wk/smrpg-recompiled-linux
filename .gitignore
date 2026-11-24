@@ -1,0 +1,72 @@
+# your own game files and what's made from them (building from source puts them here)
+input/
+extracted/
+generated/
+generated-*/
+/rando/
+# Nintendo fonts (users import their own; only the README ships)
+/fonts/*
+!/fonts/README.md
+# build output, caches, saves and settings
+build/
+cache/
+dist/
+save/
+/larecomp.ini
+/gamecontrollerdb.txt
+# tools and Python environments (machine-specific)
+tools/venv/
+venv/
+__pycache__/
+.DS_Store
+
+# ---- the Super Mario RPG port: local things that are not uploaded ----
+# the paths of each PC's tools (Android SDK, JDK...: see local.env.example)
+/local.env
+# the link to the folder with the extracted game (exefs/romfs)
+/extracted
+# dumps and disassemblies of the game's code, and loose tests
+/plt_calls.txt
+/thunks.txt
+/thunk_bl.txt
+/init_array.txt
+/dis_alloc.bin
+/probe_*.py
+/test_ver.c
+/test_ver.exe
+# binaries and ELFs converted for Ghidra (they are game code)
+*.elf
+*.nso
+realesrgan/
+
+# ---- safety net: nothing of the game, no keys, no paid programs, nobody's paths ----
+# (the textures the game dumps, and their HD versions, belong to the game)
+/textures/
+/textures-dump/
+/texturas/
+/texturas-volcadas/
+# copies of the game and console keys (never commit these)
+prod.keys
+romfs/
+exefs/
+/main
+*.xci
+*.xcz
+*.nsp
+*.nsz
+*.nca
+*.tik
+*.keys
+# output of Il2CppDumper and Ghidra (taken from the game's code)
+dump.cs
+script.json
+il2cpp.h
+stringliteral.json
+*.gzf
+# paid programs, or with their own redistribution license (they go apart: see third_party/amd-fsr/README.txt)
+Lossless*.dll
+amd_fidelityfx_*.dll
+# logs and tests
+/lasrecomp*.log
+/tools/android/lsfg-thor/
+/tools/android/partida-prueba-*/

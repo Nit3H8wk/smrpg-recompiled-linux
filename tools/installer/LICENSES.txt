@@ -1,0 +1,63 @@
+SMRPG Recomp: what comes with the program, and its licenses
+===========================================================
+
+None of this belongs to the game: the code and data of Super Mario RPG come from your own copy, on your PC. A fan
+project, not affiliated with Nintendo or Square Enix; Super Mario RPG is a trademark of Nintendo.
+
+The port
+  smrpg-recomp.exe, gamelib-src\ and the generator (builder\python\gen): based on LAS Recomp (MIT license,
+  LAS-Recomp-LICENSE.txt). Inside smrpg-recomp.exe there are also Dear ImGui (MIT, DearImGui-LICENSE.txt), SMAA (MIT,
+  SMAA-LICENSE.txt), AMD's Vulkan Memory Allocator (MIT, VMA-LICENSE.txt), the audio ported from Ryujinx's (MIT,
+  Ryujinx-LICENSE.txt) and AMD FSR 1 ported to GLSL (MIT: ffx_fsr1.h in AMD-FSR-SDK-LICENSE.md).
+
+The program's libraries (the DLLs next to smrpg-recomp.exe); each text is in this folder
+  SDL3 (zlib license) ............................... SDL3-LICENSE.txt
+  FFmpeg 9.0.2: avcodec, avformat, avutil, swscale .. LGPL 2.1 or later: FFmpeg-LGPLv2.1.txt. Built without anything GPL,
+                                                      with only the decoders the movies use (VP9, VP8, Vorbis, Opus,
+                                                      H.264, AAC). Source code: sources\ffmpeg-9.0.2.tar.xz (the same
+                                                      one as https://ffmpeg.org/releases/); its configuration is in
+                                                      the port's tools/build_deps_windows.sh.
+  Opus (3-clause BSD) ................................ Opus-COPYING.txt
+  shaderc, with glslang and SPIRV-Tools (Apache 2.0 / BSD) shaderc-LICENSE.txt, glslang-LICENSE.txt, SPIRV-Tools-LICENSE.txt
+  libiconv (LGPL 2.1) ................................ libiconv-COPYING.LIB.txt (https://www.gnu.org/software/libiconv/)
+  libstdc++ and libgcc (GPL 3 with the GCC runtime library exception): GCC-COPYING3.txt, GCC-COPYING.RUNTIME.txt
+  winpthreads and the MinGW-w64 runtime (MIT and other permissive licenses): winpthreads-COPYING.txt,
+  MinGW-w64-runtime-COPYING.txt
+  AMD FidelityFX SDK: amd_fidelityfx_loader_vk.dll, amd_fidelityfx_upscaler_vk.dll and
+  amd_fidelityfx_framegeneration_vk.dll (AMD FSR and its frame generation). AMD's redistribution license:
+  AMD-FSR-SDK-LICENSE.md.
+  lsfg.dll (Lossless Scaling frame generation, LSFG 3.1, in Menu > Video): our code built with GameNative's
+  lsfg-vk-android (MIT: lsfg-vk-android-LICENSE.txt), which uses DXVK's DXBC translator (DXVK-dxbc-LICENSE.md), pe-parse
+  (MIT: pe-parse-LICENSE.txt) and volk (MIT: volk-LICENSE.txt). Its shaders come from the Lossless.dll of YOUR copy of
+  Lossless Scaling from Steam (looked for in the registry and in your Steam libraries): that file is yours and NEVER comes
+  with this installer; without it, the generation stays off and the game runs the same.
+
+What builds the game code on your PC (builder\, inside the installer's process)
+  builder.dll: the port's builder (MIT, its sources in sources\installer-source.zip).
+  LLVM, clang and lld 23 (libLLVM-23.dll, libclang-cpp.dll; Apache 2.0 with the LLVM exceptions): LLVM-LICENSE.txt, with
+  libffi (MIT: libffi-LICENSE.txt), libxml2 (MIT: libxml2-COPYING.txt), zlib (zlib-LICENSE.txt), zstd (zstd-LICENSE.txt)
+  and libiconv.
+  The MinGW-w64 headers and CRT (MinGW-w64-headers-COPYING.txt, MinGW-w64-runtime-COPYING.txt) and, from GCC, libgcc.a,
+  libgcc_s.a, crtbegin.o and crtend.o (GPL 3 with the GCC runtime library exception: GCC-COPYING3.txt,
+  GCC-COPYING.RUNTIME.txt), which are linked with the game code.
+  Python 3.12 "embeddable" from python.org (PSF license and those of its libraries: Python-LICENSE.txt), with Capstone
+  5.0.9 (BSD: Capstone-LICENSE.txt), lz4 (the Python bindings, BSD-3: lz4-LICENSE.txt; the LZ4 library inside them, BSD-2:
+  LZ4-library-BSD-2.txt) and Unicorn 2.1.4 (GPL 2: Unicorn-GPL-2.0.txt). Unicorn is loaded into the installer's process:
+  its full source code is in sources\unicorn-2.1.4.tar.gz (the one on PyPI), that of the installer and its builder (with
+  the Makefile that builds them) in sources\installer-source.zip, and that of the generator, as is, in
+  builder\python\gen.
+  Inside the installer: zstd (BSD, zstd-LICENSE.txt).
+
+Source code of what comes from MSYS2
+  For all the libraries above that come from MSYS2 UCRT64 (libgcc, libstdc++, the MinGW-w64 CRT and headers, winpthreads,
+  libiconv, LLVM/clang/lld, libffi, libxml2, zlib, zstd, SDL3, Opus, shaderc, glslang, SPIRV-Tools): MSYS2-sources.txt has
+  the exact source package of each one (the version included here, with its patches and its build recipe), which can be
+  downloaded from repo.msys2.org. Those of libiconv and GCC (LGPL and GPL) are also attached to this version's GitHub
+  release, next to the installer.
+
+The whole installer (with builder.dll, the generator and Unicorn, which share its process) is distributed as a whole
+under the GPL 2; each part also keeps its own license.
+
+Fonts
+  Baloo 2 (SIL Open Font License, Baloo2-OFL.txt), BIZ UDPGothic (SIL Open Font License, BIZUDPGothic-OFL.txt),
+  DejaVu Sans (DejaVu license, DejaVu-LICENSE.txt).
