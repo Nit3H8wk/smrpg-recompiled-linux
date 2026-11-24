@@ -2,7 +2,7 @@
   "$schema": "https://recomplauncher.com/schema/recomplauncher.json",
   "format": 1,
   "name": "SMRPG Recomp (Linux)",
-  "repo": "ElKiro1311/smrpg-recompiled-linux",
+  "repo": "Nit3H8wk/smrpg-recompiled-linux",
   "inputs": [
     {
       "id": "game",

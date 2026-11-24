@@ -47,7 +47,7 @@ if [[ -n "$SRC_OVERRIDE" ]]; then SRC="$SRC_OVERRIDE"; fi
 if [[ ! -f "$SRC/Makefile" ]]; then
   echo "build.sh: getting the source tree..."
   rm -rf "$SRC"
-  git clone --depth 1 https://github.com/ElKiro1311/smrpg-recompiled-linux.git "$SRC" \
+  git clone --depth 1 https://github.com/Nit3H8wk/smrpg-recompiled-linux.git "$SRC" \
     || { echo "build.sh: couldn't clone the source; check your connection." >&2; exit 1; }
 fi
 
